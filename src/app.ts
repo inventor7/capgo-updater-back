@@ -1,6 +1,4 @@
 import express, { Application } from "express";
-import https from "https";
-import fs from "fs";
 import path from "path";
 
 // Import configuration and utilities
@@ -14,11 +12,7 @@ import {
   rateLimiter,
   sanitizeRequest,
 } from "./middleware/security";
-import {
-  errorHandler,
-  notFoundHandler,
-  asyncHandler,
-} from "./middleware/errorHandler";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 // Import routes
 import apiRoutes from "./routes";
@@ -61,29 +55,12 @@ app.use(notFoundHandler);
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-// SSL configuration
-let server: https.Server | Application;
+// Server configuration
+let server: Application;
 
-if (
-  process.env.NODE_ENV === "production" ||
-  fs.existsSync(path.join(__dirname, "..", "server.key"))
-) {
-  try {
-    const sslOptions = {
-      key: fs.readFileSync(path.join(__dirname, "..", "server.key")),
-      cert: fs.readFileSync(path.join(__dirname, "..", "server.cert")),
-    };
-
-    server = https.createServer(sslOptions, app);
-    logger.info("SSL enabled server created");
-  } catch (error) {
-    logger.warn("SSL certificates not found, starting HTTP server", { error });
-    server = app;
-  }
-} else {
-  server = app;
-  logger.info("Starting HTTP server (development mode)");
-}
+// Always use HTTP server
+server = app;
+logger.info("Starting HTTP server");
 
 // Start server
 const startServer = () => {
@@ -99,16 +76,8 @@ const startServer = () => {
       `🚀 Capgo self-hosted update server running on port ${config.port}`
     );
     console.log(`📝 Environment: ${config.environment}`);
-    console.log(
-      `🔗 Admin interface: http${
-        config.environment === "prod" ? "s" : ""
-      }://localhost:${config.port}`
-    );
-    console.log(
-      `📊 Health check: http${
-        config.environment === "prod" ? "s" : ""
-      }://localhost:${config.port}/health`
-    );
+    console.log(`🔗 Admin interface: http://localhost:${config.port}`);
+    console.log(`📊 Health check: http://localhost:${config.port}/health`);
   });
 };
 
