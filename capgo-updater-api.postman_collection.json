@@ -1,0 +1,645 @@
+{
+  "info": {
+    "_postman_id": "capgo-updater-api-collection",
+    "name": "Capgo Updater API",
+    "description": "API collection for Capgo self-hosted update server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Basic health check for the service"
+          },
+          "response": []
+        },
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Health check for the update service"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Update Endpoints",
+      "item": [
+        {
+          "name": "Check for Updates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"{{platform}}\",\n \"version_build\": \"{{version}}\",\n  \"appId\": \"{{appId}}\",\n  \"device_id\": \"{{deviceId}}\",\n  \"channel\": \"{{channel}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "update"]
+            },
+            "description": "Check for available updates based on platform, version, and appId"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Updates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/updates?platform={{platform}}&appId={{appId}}&channel={{channel}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "updates"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "{{platform}}"
+                },
+                {
+                  "key": "appId",
+                  "value": "{{appId}}"
+                },
+                {
+                  "key": "channel",
+                  "value": "{{channel}}"
+                }
+              ]
+            },
+            "description": "Get all available updates for an app"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Builtin Version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/builtin?platform={{platform}}&version_build={{version}}&appId={{appId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "builtin"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "{{platform}}"
+                },
+                {
+                  "key": "version_build",
+                  "value": "{{version}}"
+                },
+                {
+                  "key": "appId",
+                  "value": "{{appId}}"
+                }
+              ]
+            },
+            "description": "Get builtin version information"
+          },
+          "response": []
+        },
+        {
+          "name": "Log Download Completed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleId\": \"{{bundleId}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"appId\": \"{{appId}}\",\n  \"platform\": \"{{platform}}\",\n  \"version\": \"{{version}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/downloaded",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "downloaded"]
+            },
+            "description": "Log download completion notification"
+          },
+          "response": []
+        },
+        {
+          "name": "Log Update Applied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleId\": \"{{bundleId}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"appId\": \"{{appId}}\",\n  \"platform\": \"{{platform}}\",\n  \"version\": \"{{version}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applied",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applied"]
+            },
+            "description": "Log update application notification"
+          },
+          "response": []
+        },
+        {
+          "name": "Log Update Failed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleId\": \"{{bundleId}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"appId\": \"{{appId}}\",\n  \"platform\": \"{{platform}}\",\n  \"version\": \"{{version}}\",\n  \"error\": \"{{error}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/failed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "failed"]
+            },
+            "description": "Log update failure notification"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Statistics Endpoints",
+      "item": [
+        {
+          "name": "Log Update Statistics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleId\": \"{{bundleId}}\",\n  \"status\": \"{{status}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"appId\": \"{{appId}}\",\n \"platform\": \"{{platform}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats"]
+            },
+            "description": "Log update statistics and analytics data"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Channel Management",
+      "item": [
+        {
+          "name": "Assign Channel to Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"{{channel}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"appId\": \"{{appId}}\",\n  \"platform\": \"{{platform}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/channel_self",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "channel_self"]
+            },
+            "description": "Assign a channel to a device"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Device Channel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/channel?deviceId={{deviceId}}&appId={{appId}}&platform={{platform}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "channel"],
+              "query": [
+                {
+                  "key": "deviceId",
+                  "value": "{{deviceId}}"
+                },
+                {
+                  "key": "appId",
+                  "value": "{{appId}}"
+                },
+                {
+                  "key": "platform",
+                  "value": "{{platform}}"
+                }
+              ]
+            },
+            "description": "Get channel for a device"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Available Channels",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/channels?appId={{appId}}&platform={{platform}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "channels"],
+              "query": [
+                {
+                  "key": "appId",
+                  "value": "{{appId}}"
+                },
+                {
+                  "key": "platform",
+                  "value": "{{platform}}"
+                }
+              ]
+            },
+            "description": "Get all available channels for an app"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Operations",
+      "item": [
+        {
+          "name": "Upload New Update Bundle",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "bundle",
+                  "type": "file",
+                  "src": "/path/to/bundle.zip"
+                },
+                {
+                  "key": "version",
+                  "value": "{{version}}",
+                  "type": "text"
+                },
+                {
+                  "key": "platform",
+                  "value": "{{platform}}",
+                  "type": "text"
+                },
+                {
+                  "key": "channel",
+                  "value": "{{channel}}",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "environment",
+                  "value": "{{environment}}",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "required",
+                  "value": "{{required}}",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "upload"]
+            },
+            "description": "Upload a new update bundle (multipart form data)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dashboard Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "stats"]
+            },
+            "description": "Get dashboard statistics (counts for bundles, devices, channels, and downloads)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Bundles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/bundles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "bundles"]
+            },
+            "description": "Get all bundles for dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Create New Bundle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"{{platform}}\",\n  \"version\": \"{{version}}\",\n  \"download_url\": \"{{downloadUrl}}\",\n \"checksum\": \"{{checksum}}\",\n \"channel\": \"{{channel}}\",\n  \"environment\": \"{{environment}}\",\n  \"required\": {{required}},\n \"active\": true,\n  \"created_by\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/bundles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "bundles"]
+            },
+            "description": "Create a new bundle"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Bundle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"{{platform}}\",\n \"version\": \"{{version}}\",\n  \"download_url\": \"{{downloadUrl}}\",\n  \"checksum\": \"{{checksum}}\",\n  \"channel\": \"{{channel}}\",\n \"environment\": \"{{environment}}\",\n  \"required\": {{required}},\n  \"active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/bundles/{{bundleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "bundles", "{{bundleId}}"]
+            },
+            "description": "Update a bundle by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Bundle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/bundles/{{bundleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "bundles", "{{bundleId}}"]
+            },
+            "description": "Delete a bundle by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Channels",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/channels",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "channels"]
+            },
+            "description": "Get all channels for dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Channel",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/channels/{{channelId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "channels", "{{channelId}}"]
+            },
+            "description": "Delete a channel and all associated bundles"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "devices"]
+            },
+            "description": "Get all devices for dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Device Channel",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"{{channel}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/devices/{{deviceId}}/channel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "devices", "{{deviceId}}", "channel"]
+            },
+            "description": "Update device channel assignment"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Device",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/devices/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "devices", "{{deviceId}}"]
+            },
+            "description": "Delete a device"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Statistics Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/stats-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "stats-data"]
+            },
+            "description": "Get statistics data for dashboard"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["// Pre-request script can be added here if needed"]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["// Test script can be added here if needed"]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "id": "baseUrl",
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "id": "platform",
+      "key": "platform",
+      "value": "android",
+      "type": "string"
+    },
+    {
+      "id": "version",
+      "key": "version",
+      "value": "1.0.0",
+      "type": "string"
+    },
+    {
+      "id": "appId",
+      "key": "appId",
+      "value": "com.example.app",
+      "type": "string"
+    },
+    {
+      "id": "deviceId",
+      "key": "deviceId",
+      "value": "device-12345",
+      "type": "string"
+    },
+    {
+      "id": "channel",
+      "key": "channel",
+      "value": "stable",
+      "type": "string"
+    },
+    {
+      "id": "bundleId",
+      "key": "bundleId",
+      "value": "bundle-12345",
+      "type": "string"
+    },
+    {
+      "id": "status",
+      "key": "status",
+      "value": "downloaded",
+      "type": "string"
+    },
+    {
+      "id": "environment",
+      "key": "environment",
+      "value": "prod",
+      "type": "string"
+    },
+    {
+      "id": "required",
+      "key": "required",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "id": "downloadUrl",
+      "key": "downloadUrl",
+      "value": "https://example.com/bundle.zip",
+      "type": "string"
+    },
+    {
+      "id": "checksum",
+      "key": "checksum",
+      "value": "sha256-checksum-here",
+      "type": "string"
+    },
+    {
+      "id": "channelId",
+      "key": "channelId",
+      "value": "stable",
+      "type": "string"
+    },
+    {
+      "id": "error",
+      "key": "error",
+      "value": "Update failed",
+      "type": "string"
+    }
+  ]
+}
