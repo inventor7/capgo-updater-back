@@ -1,5 +1,5 @@
 import "module-alias/register";
 
-import { startServer } from "./app";
+import { app } from "./app";
 
-startServer();
+app.start();

@@ -8,11 +8,11 @@ import { healthController } from "@/controllers";
 
 const router: Router = Router();
 
-router.use("/api", updateRoutes);
-router.use("/api", statsRoutes);
-router.use("/api", channelRoutes);
-router.use("/api", adminRoutes);
-router.use("/api", healthRoutes);
+router.use("/", updateRoutes);
+router.use("/", statsRoutes);
+router.use("/", channelRoutes);
+router.use("/", adminRoutes);
+router.use("/", healthRoutes);
 
 router.get("/health", healthController.basicHealthCheck.bind(healthController));
 
