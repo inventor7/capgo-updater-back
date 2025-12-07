@@ -17,6 +17,9 @@
     "mobile",
     "app"
   ],
+  "_moduleAliases": {
+    "@": "dist"
+  },
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {

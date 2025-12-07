@@ -455,7 +455,7 @@ class AdminController {
   /**
    * Get multer upload middleware
    */
-  getUploadMiddleware() {
+  getUploadMiddleware(): any {
     return this.fileService.createMulterUpload().single("bundle");
   }
 }
