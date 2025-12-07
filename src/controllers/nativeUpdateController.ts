@@ -373,7 +373,7 @@ class NativeUpdateController {
   /**
    * Get multer upload middleware for native files
    */
-  getUploadMiddleware() {
+  getUploadMiddleware(): any {
     const storage = multer.memoryStorage();
     const upload = multer({
       storage,
