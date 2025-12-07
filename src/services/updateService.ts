@@ -12,21 +12,24 @@ class UpdateService implements IUpdateService {
     try {
       logger.info("Checking for updates", { request });
 
+      const channelToUse =
+        request.channel || request.defaultChannel || "stable";
+
       const updates = await supabaseService.query("updates", {
         select: "version, download_url, checksum, session_key",
         eq: { platform: request.platform },
         gt: { version: request.version },
         match: {
           environment: process.env.ENVIRONMENT || "prod",
-          channel: request.channel,
+          channel: channelToUse,
           active: true,
         },
         order: { column: "version", ascending: false },
         limit: 1,
       });
 
-      if (updates && updates.length > 0) {
-        const latestUpdate = updates[0];
+      if (updates && updates.data && updates.data.length > 0) {
+        const latestUpdate = updates.data[0];
         logger.info("Update found", {
           version: latestUpdate.version,
           deviceId: request.deviceId,
@@ -47,7 +50,7 @@ class UpdateService implements IUpdateService {
 
         return {
           version: latestUpdate.version,
-          url: latestUpdate.download_url,
+          url: await this.generateDownloadUrl(latestUpdate.download_url),
           checksum: latestUpdate.checksum,
           sessionKey: latestUpdate.session_key || undefined,
         };
@@ -83,7 +86,7 @@ class UpdateService implements IUpdateService {
         order: { column: "version", ascending: false },
       });
 
-      return { updates: updates || [] };
+      return { updates: updates.data || [] };
     } catch (error) {
       logger.error("Get all updates failed", { query, error });
       throw error;
@@ -198,12 +201,40 @@ class UpdateService implements IUpdateService {
       });
 
       const channels = [
-        ...new Set((result || []).map((item: any) => item.channel)),
+        ...new Set((result.data || []).map((item: any) => item.channel)),
       ] as string[];
       return { channels };
     } catch (error) {
       logger.error("Get available channels failed", { query, error });
       throw error;
+    }
+  }
+
+  private async generateDownloadUrl(downloadUrl: string): Promise<string> {
+    try {
+      // Extract file path from the Supabase URL
+      // Example URL: https://dubnvfvlaiqzbimgaqvp.supabase.co/storage/v1/object/public/updates/bundle-android-1.1.120-1759588025070.zip
+      const url = new URL(downloadUrl);
+      // The path format is typically /storage/v1/object/public/{bucketName}/{filePath}
+      const pathParts = url.pathname.split("/");
+      const publicIndex = pathParts.indexOf("public");
+      if (publicIndex !== -1 && publicIndex < pathParts.length - 1) {
+        // Generate a signed URL that's valid for 1 hour (3600 seconds)
+        //const filePath = pathParts.slice(publicIndex + 2).join("/"); // Skip 'public' and bucket name
+        // const signedUrl =  await supabaseService.createSignedUrl(filePath, 3600);
+
+        return downloadUrl; //signedUrl;
+      } else {
+        logger.warn("Could not extract file path from download URL", {
+          downloadUrl,
+        });
+        // If we can't parse the URL, return the original URL
+        return downloadUrl;
+      }
+    } catch (error) {
+      logger.error("Failed to generate signed URL", { downloadUrl, error });
+      // If signing fails, return the original URL
+      return downloadUrl;
     }
   }
 }

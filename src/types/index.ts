@@ -1,4 +1,4 @@
-// Common types for the application
+import { SupabaseClient } from "@supabase/supabase-js";
 
 export type Platform = "android" | "ios" | "web";
 
@@ -12,6 +12,7 @@ export interface UpdateRequest {
   channel?: Channel;
   deviceId?: string;
   appId: string;
+  defaultChannel?: Channel;
 }
 
 export interface UpdateResponse {
@@ -139,10 +140,57 @@ export interface UpdateStatsRecord {
   details?: string;
 }
 
+// Native update types (for APK/IPA files)
+export type NativePlatform = "android" | "ios";
+
+export interface NativeUpdateRecord {
+  id?: number;
+  platform: NativePlatform;
+  version: string;
+  version_code: number;
+  download_url: string;
+  checksum?: string;
+  channel: string;
+  environment: Environment;
+  required: boolean;
+  active: boolean;
+  file_size?: number;
+  release_notes?: string;
+  created_at?: string;
+}
+
+export interface NativeUpdateCheckRequest {
+  platform: NativePlatform;
+  channel?: string;
+  environment?: string;
+  current_version_code: number;
+}
+
+export interface NativeUpdateCheckResponse {
+  available: boolean;
+  update: NativeUpdateRecord | null;
+}
+
+export interface NativeUpdateLogRecord {
+  id?: number;
+  event: string;
+  platform: string;
+  device_id?: string;
+  current_version_code?: number;
+  new_version?: string;
+  new_version_code?: number;
+  channel?: string;
+  environment?: string;
+  error_message?: string;
+  created_at?: string;
+}
+
 export interface QueryOptions {
   select?: string;
   count?: "exact" | "planned" | "estimated";
   match?: Record<string, any>;
+  eq?: Record<string, any>;
+  gt?: Record<string, any>;
   order?: { column: string; ascending?: boolean };
   limit?: number;
   offset?: number;
@@ -152,7 +200,6 @@ export interface QueryResult<T = any> {
   data: T[] | null;
   count?: number | null;
 }
-
 export interface ISupabaseService {
   query<T = any>(
     table: string,
@@ -161,6 +208,8 @@ export interface ISupabaseService {
   insert(table: string, data: any): Promise<any>;
   update(table: string, data: any, filter: any): Promise<any>;
   delete(table: string, filter: any): Promise<any>;
+  createSignedUrl(filePath: string, expiresIn: number): Promise<string>;
+  getClient(): SupabaseClient;
 }
 
 // Service interfaces
@@ -183,14 +232,6 @@ export interface IUpdateService {
     appId: string;
     platform: string;
   }): Promise<ChannelsResponse>;
-}
-
-export interface ISupabaseService {
-  query(table: string, options: any): Promise<any>;
-  insert(table: string, data: any): Promise<any>;
-  update(table: string, data: any, filter: any): Promise<any>;
-  delete(table: string, filter: any): Promise<any>;
-  getClient(): any; // Supabase client instance
 }
 
 export interface IFileService {

@@ -3,6 +3,7 @@ import statsController from "./statsController";
 import channelController from "./channelController";
 import adminController from "./adminController";
 import healthController from "./healthController";
+import nativeUpdateController from "./nativeUpdateController";
 
 export {
   updateController,
@@ -10,4 +11,5 @@ export {
   channelController,
   adminController,
   healthController,
+  nativeUpdateController,
 };

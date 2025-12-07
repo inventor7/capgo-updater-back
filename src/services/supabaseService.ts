@@ -248,6 +248,28 @@ class SupabaseService implements ISupabaseService {
     }
   }
 
+  async createSignedUrl(filePath: string, expiresIn: number = 3600): Promise<string> {
+    try {
+      const { data, error } = await this.storageClient.storage
+        .from(config.supabase.bucketName)
+        .createSignedUrl(filePath, expiresIn);
+
+      if (error) {
+        logger.error("Supabase create signed URL error", { filePath, error });
+        throw new DatabaseError(`Create signed URL failed: ${error.message}`);
+      }
+
+      logger.info("Signed URL created", {
+        filePath,
+        url: data.signedUrl,
+      });
+      return data.signedUrl;
+    } catch (error) {
+      logger.error("Supabase service create signed URL error", { filePath, error });
+      throw error;
+    }
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       const { error } = await this.client.from("updates").select("id").limit(1);
