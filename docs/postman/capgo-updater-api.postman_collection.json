@@ -302,6 +302,182 @@
       ]
     },
     {
+      "name": "Native Update Endpoints",
+      "item": [
+        {
+          "name": "Check for Native Updates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/native-updates/check?platform={{platform}}&current_version_code=1&channel={{channel}}&environment={{environment}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "native-updates", "check"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "{{platform}}"
+                },
+                {
+                  "key": "current_version_code",
+                  "value": "1"
+                },
+                {
+                  "key": "channel",
+                  "value": "{{channel}}",
+                  "disabled": true
+                },
+                {
+                  "key": "environment",
+                  "value": "{{environment}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Check for available native updates (APK/IPA) based on platform and current version code"
+          },
+          "response": []
+        },
+        {
+          "name": "Log Native Update Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"downloaded\",\n  \"platform\": \"{{platform}}\",\n  \"device_id\": \"{{deviceId}}\",\n  \"current_version_code\": 1,\n  \"new_version\": \"{{version}}\",\n  \"new_version_code\": 2,\n  \"channel\": \"{{channel}}\",\n  \"environment\": \"{{environment}}\",\n  \"error_message\": \"{{error}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/native-updates/log",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "native-updates", "log"]
+            },
+            "description": "Log native update events (downloaded, applied, failed)"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Native Update File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/app.apk"
+                },
+                {
+                  "key": "version",
+                  "value": "{{version}}",
+                  "type": "text"
+                },
+                {
+                  "key": "version_code",
+                  "value": "2",
+                  "type": "text"
+                },
+                {
+                  "key": "platform",
+                  "value": "{{platform}}",
+                  "type": "text"
+                },
+                {
+                  "key": "channel",
+                  "value": "{{channel}}",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "environment",
+                  "value": "{{environment}}",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "required",
+                  "value": "{{required}}",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "release_notes",
+                  "value": "Release notes for this update",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/native-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "native-upload"]
+            },
+            "description": "Upload a new native update file (APK for Android, IPA for iOS)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Native Updates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/native-updates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "native-updates"]
+            },
+            "description": "Get all native updates for dashboard management"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Native Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"{{version}}\",\n  \"channel\": \"{{channel}}\",\n  \"environment\": \"{{environment}}\",\n  \"required\": {{required}},\n  \"active\": true,\n  \"release_notes\": \"Updated release notes\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/native-updates/{{nativeUpdateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "native-updates", "{{nativeUpdateId}}"]
+            },
+            "description": "Update a native update record by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Native Update",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/native-updates/{{nativeUpdateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "native-updates", "{{nativeUpdateId}}"]
+            },
+            "description": "Delete a native update by ID"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Admin Operations",
       "item": [
         {
@@ -639,6 +815,12 @@
       "id": "error",
       "key": "error",
       "value": "Update failed",
+      "type": "string"
+    },
+    {
+      "id": "nativeUpdateId",
+      "key": "nativeUpdateId",
+      "value": "1",
       "type": "string"
     }
   ]

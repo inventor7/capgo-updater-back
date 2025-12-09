@@ -10,6 +10,7 @@ The Postman collection includes all API endpoints for the Capgo updater with the
 - Update Endpoints
 - Statistics Endpoints
 - Channel Management
+- Native Update Endpoints
 - Admin Operations
 
 ## Prerequisites
@@ -104,13 +105,45 @@ Start by testing the health check endpoints to ensure your server is running:
 - **Query Parameters**: appId, platform
 - **Purpose**: Get all available channels for an app
 
-### 5. Admin Operations
+### 5. Native Update Endpoints
+
+Native updates allow for distributing native application updates (APK files for Android and IPA files for iOS) to users. These endpoints enable checking for newer native versions, uploading native files, and logging native update events.
+
+#### Check for Native Updates
+- **Method**: `GET`
+- **Endpoint**: `/api/native-updates/check`
+- **Query Parameters**:
+  - `platform`: Target platform (`android`, `ios`)
+  - `current_version_code`: Integer version code of the current app (required)
+  - `channel`: Update channel (default: `stable`)
+  - `environment`: Environment (default: `prod`)
+- **Purpose**: Check if there's a native update (APK/IPA) available for the app based on platform and current version code
+
+#### Log Native Update Events
+- **Method**: `POST`
+- **Endpoint**: `/api/native-updates/log`
+- **Body**: Contains event details such as event type, platform, device_id, current_version_code, new_version, etc.
+- **Purpose**: Log different stages of native update process (downloaded, applied, failed)
+
+#### Upload Native Update File
+- **Method**: `POST`
+- **Endpoint**: `/api/admin/native-upload`
+- **Body**: Multipart form data with native file (APK/IPA) and metadata
+- **Purpose**: Upload a new native app update bundle (APK for Android or IPA for iOS)
+
+#### Dashboard Native Update Endpoints
+- **Get All Native Updates**: `GET /api/dashboard/native-updates`
+- **Update Native Update**: `PUT /api/dashboard/native-updates/{id}`
+- **Delete Native Update**: `DELETE /api/dashboard/native-updates/{id}`
+- **Purpose**: Manage native updates through the admin dashboard
+
+### 6. Admin Operations
 
 #### Upload New Update Bundle
 - **Method**: `POST`
 - **Endpoint**: `/api/admin/upload`
 - **Body**: Multipart form data with bundle file and metadata
-- **Purpose**: Upload a new app update bundle
+- **Purpose**: Upload a new web app update bundle
 
 #### Dashboard Endpoints
 - **Get Dashboard Stats**: `GET /api/dashboard/stats`

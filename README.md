@@ -148,11 +148,44 @@ Your server will be available at `http://your-server-ip:3000`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/update` | Check for updates |
+| GET | `/api/update` | Check for web updates |
 | POST | `/api/stats` | Update statistics |
 | POST | `/api/channel_self` | Channel management |
-| POST | `/api/admin/upload` | Upload new update |
+| POST | `/api/admin/upload` | Upload new web update |
+| **Native Updates** | | |
+| GET | `/api/native-updates/check` | Check for native updates (APK/IPA) |
+| POST | `/api/native-updates/log` | Log native update events |
+| POST | `/api/admin/native-upload` | Upload new native update (APK/IPA) |
+| GET | `/api/dashboard/native-updates` | Get all native updates (dashboard) |
+| PUT | `/api/dashboard/native-updates/:id` | Update native update record |
+| DELETE | `/api/dashboard/native-updates/:id` | Delete native update |
 | GET | `/` | Admin interface |
+
+## Native Updates (APK/IPA)
+
+The server supports native app updates (APK for Android, IPA for iOS) in addition to web updates. These endpoints are designed for native application updates rather than web bundle updates.
+
+### Native Update Process
+
+1. **Check for Updates**: Use `/api/native-updates/check` to determine if a newer native version is available
+2. **Download Update**: If available, download the APK/IPA from the returned download URL
+3. **Install Update**: Install the native update on the device
+4. **Log Events**: Log update events using `/api/native-updates/log`
+
+### API Endpoints for Native Updates
+- `GET /api/native-updates/check` - Check for available native update based on platform and current version code
+- `POST /api/native-updates/log` - Log update events (downloaded, applied, failed)
+- `POST /api/admin/native-upload` - Upload new APK/IPA files for distribution
+- Dashboard endpoints for managing native updates:
+  - `GET /api/dashboard/native-updates` - Get all native updates
+  - `PUT /api/dashboard/native-updates/:id` - Update native update record
+  - `DELETE /api/dashboard/native-updates/:id` - Delete native update
+
+### Parameters for Native Updates
+- `platform`: "android" or "ios"
+- `current_version_code`: Integer version code of the current app
+- `channel`: Update channel (default: "stable")
+- `environment`: Environment (default: "prod")
 
 ## Usage
 
@@ -229,14 +262,21 @@ Access the admin interface at `http://your-server:3000/` to upload new updates.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/update` | Check for updates |
+| GET | `/api/update` | Check for web updates |
 | POST | `/api/stats` | Update statistics |
 | POST | `/api/channel_self` | Channel management |
-| POST | `/api/admin/upload` | Upload new update |
+| POST | `/api/admin/upload` | Upload new web update |
 | GET | `/api/builtin` | Get builtin version info |
 | POST | `/api/downloaded` | Download completion notification |
 | POST | `/api/applied` | Update application notification |
 | POST | `/api/failed` | Update failure notification |
+| **Native Updates** | | |
+| GET | `/api/native-updates/check` | Check for native updates (APK/IPA) |
+| POST | `/api/native-updates/log` | Log native update events |
+| POST | `/api/admin/native-upload` | Upload new native update (APK/IPA) |
+| GET | `/api/dashboard/native-updates` | Get all native updates (dashboard) |
+| PUT | `/api/dashboard/native-updates/:id` | Update native update record |
+| DELETE | `/api/dashboard/native-updates/:id` | Delete native update |
 | GET | `/` | Admin interface |
 | GET | `/health` | Health check |
 });
