@@ -13,6 +13,7 @@ class UpdateService implements IUpdateService {
       logger.info("Checking for updates", { request });
 
       // Get channel - plugin sends defaultChannel (camelCase) or default_channel (snake_case)
+      // Priority: explicit channel > defaultChannel > default_channel > fallback to "staging"
       const channelToUse =
         request.channel ||
         request.defaultChannel ||
@@ -32,6 +33,8 @@ class UpdateService implements IUpdateService {
         normalizedVersion: currentVersion,
         userNativeVersion,
         channel: channelToUse,
+        defaultChannelReceived: request.defaultChannel,
+        explicitChannelReceived: request.channel,
       });
 
       // Get latest active update for this platform/channel
@@ -58,6 +61,7 @@ class UpdateService implements IUpdateService {
           logger.info("No update needed - already on latest version", {
             currentVersion,
             latestAvailable: latestUpdate.version,
+            channel: channelToUse,
           });
           return { message: "No update available" };
         }
@@ -70,6 +74,7 @@ class UpdateService implements IUpdateService {
             userNativeVersion,
             requiredNativeVersion: minNativeRequired,
             otaVersion: latestUpdate.version,
+            channel: channelToUse,
           });
 
           // Return message indicating native update needed first
@@ -82,6 +87,7 @@ class UpdateService implements IUpdateService {
         logger.info("Update found", {
           version: latestUpdate.version,
           deviceId: request.deviceId,
+          channel: channelToUse,
         });
 
         if (request.deviceId) {
@@ -111,7 +117,7 @@ class UpdateService implements IUpdateService {
               {
                 app_id: request.appId,
                 device_id: request.deviceId,
-                channel: channelToUse,
+                channel: channelToUse, // Use the resolved channel instead of hardcoded "staging"
                 platform: request.platform,
                 updated_at: new Date().toISOString(),
               },
@@ -127,7 +133,11 @@ class UpdateService implements IUpdateService {
         };
       }
 
-      logger.info("No updates available", { request });
+      logger.info("No updates available", {
+        request,
+        channelUsed: channelToUse,
+        platform: request.platform,
+      });
       return {};
     } catch (error) {
       logger.error("Update check failed", { request, error });
@@ -276,7 +286,9 @@ class UpdateService implements IUpdateService {
       });
 
       const channel =
-        result && result.length > 0 ? result[0].channel : "stable";
+        result && result.data && result.data.length > 0
+          ? result.data[0].channel
+          : "stable";
       return { channel };
     } catch (error) {
       logger.error("Get device channel failed", { query, error });
