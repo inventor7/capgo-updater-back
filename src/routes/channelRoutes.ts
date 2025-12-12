@@ -1,18 +1,17 @@
 import { Router } from "express";
 import { channelController } from "@/controllers";
-import { validateRequest, channelAssignmentSchema } from "@/utils/validators";
-import { rateLimiter } from "@/middleware/security";
+import { authenticate, authorize } from "@/middleware/auth";
 
 const router: Router = Router();
 
-router.use(rateLimiter);
-
+// Public channel assignment endpoint for app integration
+// This allows apps to register themselves with a channel without authentication
 router.post(
   "/channel_self",
-  validateRequest(channelAssignmentSchema),
   channelController.assignChannel.bind(channelController)
 );
 
+// Public endpoints to get channel information
 router.get(
   "/channel",
   channelController.getDeviceChannel.bind(channelController)
@@ -23,10 +22,15 @@ router.get(
   channelController.getAvailableChannels.bind(channelController)
 );
 
+// Authenticated channel management endpoints
+// These allow users with proper permissions to manage channels
 router.post(
-  "/channel",
-  validateRequest(channelAssignmentSchema),
+  "/channels",
+  authenticate,
+  authorize('write:channels'),
   channelController.assignChannel.bind(channelController)
 );
+
+// Additional authenticated endpoints can be added here as needed
 
 export default router;

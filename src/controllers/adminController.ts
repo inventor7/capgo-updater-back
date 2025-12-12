@@ -368,6 +368,37 @@ class AdminController {
   }
 
   /**
+   * Get user profile information
+   * GET /api/user/profile
+   */
+  async getUserProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const authenticatedReq = req as any; // Type assertion for now
+      const user = authenticatedReq.user;
+
+      if (!user) {
+        throw new ValidationError("User not authenticated");
+      }
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+      });
+    } catch (error) {
+      logger.error("Get user profile failed", { error });
+      if (error instanceof ValidationError) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to get user profile" });
+      }
+    }
+  }
+
+  /**
    * Get statistics data for dashboard
    * GET /api/dashboard/stats-data
    */

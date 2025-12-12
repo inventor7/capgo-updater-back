@@ -145,6 +145,9 @@ class NativeUpdateController {
       // Also register the device in device_channels if it doesn't exist
       // This ensures the device appears in the dashboard
       if (device_id && req.body.appId && logRecord.platform) {
+        // Ensure app exists first
+        await this.ensureAppExists(req.body.appId);
+
         const existing = await this.supabaseService.query("device_channels", {
           match: {
             app_id: req.body.appId,
@@ -177,6 +180,29 @@ class NativeUpdateController {
       } else {
         res.status(500).json({ error: "Failed to log native update event" });
       }
+    }
+  }
+
+  private async ensureAppExists(appId: string): Promise<void> {
+    try {
+      // Check if app already exists
+      const existingApps = await this.supabaseService.query("apps", {
+        match: { app_identifier: appId },
+        select: "id"
+      });
+
+      if (!existingApps.data || existingApps.data.length === 0) {
+        // Create app if it doesn't exist (could be done automatically)
+        await this.supabaseService.insert("apps", [{
+          name: appId, // Use app identifier as name initially
+          app_identifier: appId,
+          description: `App ${appId}`,
+          created_by: null // No creator since it's automatic
+        }]);
+      }
+    } catch (error) {
+      logger.warn("Could not ensure app exists", { appId, error });
+      // Don't throw error, as this is just for ensuring the app exists
     }
   }
 

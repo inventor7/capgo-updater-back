@@ -187,6 +187,58 @@ The server supports native app updates (APK for Android, IPA for iOS) in additio
 - `channel`: Update channel (default: "stable")
 - `environment`: Environment (default: "prod")
 
+## Authentication and Authorization
+
+The Capgo updater server includes a comprehensive authentication and authorization system based on Supabase Auth, with role-based access control (RBAC) and multi-tenancy support.
+
+### Authentication Endpoints
+- `POST /auth/register` - Register a new user account
+- `POST /auth/login` - Login with email and password
+- `POST /auth/logout` - Logout from current session
+- `GET /auth/session` - Get current user session information
+
+### Admin Management Endpoints
+- `POST /admin/apps` - Create a new application
+- `GET /admin/apps` - Get user's applications
+- `POST /admin/teams` - Create a new team
+- `POST /admin/teams/members` - Add user to team
+- `POST /admin/roles` - Create a new role
+- `GET /admin/roles` - Get roles for user's apps
+- `GET /admin/users` - Get all users (admin only)
+- `PUT /admin/users/:id` - Update user status (admin only)
+- `GET /admin/users/:id/permissions` - Get user permissions
+
+### Authentication Variables
+When working with the API, you'll need to include an Authorization header with a Bearer token for protected endpoints:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Permissions System
+The system uses a role-based permissions model:
+- `read:*` - Read access to all resources
+- `write:*` - Write access to all resources
+- `manage:*` - Full management access to all resources
+- `read:apps` - Read access to applications
+- `write:apps` - Write access to applications
+- `manage:apps` - Full management of applications
+- `read:updates` - Read access to updates
+- `write:updates` - Write access to updates
+- `manage:updates` - Full management of updates
+- `read:channels` - Read access to channels
+- `write:channels` - Write access to channels
+- `manage:channels` - Full management of channels
+- `read:stats` - Read access to statistics
+- `write:stats` - Write access to statistics
+- `manage:stats` - Full management of statistics
+- `read:devices` - Read access to devices
+- `write:devices` - Write access to devices
+- `manage:devices` - Full management of devices
+- `manage:users` - User management (admin only)
+- `manage:roles` - Role management
+- `manage:teams` - Team management
+
 ## Usage
 
 ### In Your Capacitor App
@@ -277,6 +329,21 @@ Access the admin interface at `http://your-server:3000/` to upload new updates.
 | GET | `/api/dashboard/native-updates` | Get all native updates (dashboard) |
 | PUT | `/api/dashboard/native-updates/:id` | Update native update record |
 | DELETE | `/api/dashboard/native-updates/:id` | Delete native update |
+| **Authentication** | | |
+| POST | `/auth/register` | Register a new user |
+| POST | `/auth/login` | Login with credentials |
+| POST | `/auth/logout` | Logout from session |
+| GET | `/auth/session` | Get current session info |
+| **Admin Management** | | |
+| POST | `/admin/apps` | Create new application |
+| GET | `/admin/apps` | Get user applications |
+| POST | `/admin/teams` | Create new team |
+| POST | `/admin/teams/members` | Add user to team |
+| POST | `/admin/roles` | Create new role |
+| GET | `/admin/roles` | Get app roles |
+| GET | `/admin/users` | Get all users (admin) |
+| PUT | `/admin/users/:id` | Update user (admin) |
+| GET | `/admin/users/:id/permissions` | Get user permissions |
 | GET | `/` | Admin interface |
 | GET | `/health` | Health check |
 });

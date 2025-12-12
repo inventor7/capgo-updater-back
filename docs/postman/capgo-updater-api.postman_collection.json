@@ -478,6 +478,322 @@
       ]
     },
     {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new user account"
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with email and password"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user session"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Session",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "session"]
+            },
+            "description": "Get current user session information"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Management",
+      "item": [
+        {
+          "name": "Create App",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{appName}}\",\n  \"appIdentifier\": \"{{appIdentifier}}\",\n  \"description\": \"{{appDescription}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/apps",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "apps"]
+            },
+            "description": "Create a new application"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Apps",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/apps",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "apps"]
+            },
+            "description": "Get all applications for the authenticated user"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{teamName}}\",\n  \"appId\": \"{{appId}}\",\n  \"description\": \"{{teamDescription}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/teams",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "teams"]
+            },
+            "description": "Create a new team for an app"
+          },
+          "response": []
+        },
+        {
+          "name": "Add User to Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"teamId\": \"{{teamId}}\",\n  \"roleId\": \"{{roleId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/teams/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "teams", "members"]
+            },
+            "description": "Add a user to a team with a specific role"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{roleName}}\",\n  \"description\": \"{{roleDescription}}\",\n  \"appId\": \"{{appId}}\",\n  \"permissions\": [\"{{permission}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "roles"]
+            },
+            "description": "Create a new role for an app or system-wide"
+          },
+          "response": []
+        },
+        {
+          "name": "Get App Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "roles"]
+            },
+            "description": "Get all roles for the authenticated user's apps"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            },
+            "description": "Get all users (admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": {{isActive}},\n  \"isVerified\": {{isVerified}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "{{userId}}"]
+            },
+            "description": "Update user status (admin only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/permissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "{{userId}}", "permissions"]
+            },
+            "description": "Get permissions for a specific user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Admin Operations",
       "item": [
         {
@@ -821,6 +1137,120 @@
       "id": "nativeUpdateId",
       "key": "nativeUpdateId",
       "value": "1",
+      "type": "string"
+    },
+    {
+      "id": "email",
+      "key": "email",
+      "value": "user@example.com",
+      "type": "string"
+    },
+    {
+      "id": "password",
+      "key": "password",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "id": "firstName",
+      "key": "firstName",
+      "value": "John",
+      "type": "string"
+    },
+    {
+      "id": "lastName",
+      "key": "lastName",
+      "value": "Doe",
+      "type": "string"
+    },
+    {
+      "id": "token",
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "userId",
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "appId",
+      "key": "appId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "appName",
+      "key": "appName",
+      "value": "My App",
+      "type": "string"
+    },
+    {
+      "id": "appIdentifier",
+      "key": "appIdentifier",
+      "value": "com.example.myapp",
+      "type": "string"
+    },
+    {
+      "id": "appDescription",
+      "key": "appDescription",
+      "value": "A sample application",
+      "type": "string"
+    },
+    {
+      "id": "teamId",
+      "key": "teamId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "teamName",
+      "key": "teamName",
+      "value": "Developers",
+      "type": "string"
+    },
+    {
+      "id": "teamDescription",
+      "key": "teamDescription",
+      "value": "Development team",
+      "type": "string"
+    },
+    {
+      "id": "roleId",
+      "key": "roleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "roleName",
+      "key": "roleName",
+      "value": "Developer",
+      "type": "string"
+    },
+    {
+      "id": "roleDescription",
+      "key": "roleDescription",
+      "value": "Developer role for app",
+      "type": "string"
+    },
+    {
+      "id": "permission",
+      "key": "permission",
+      "value": "read:updates",
+      "type": "string"
+    },
+    {
+      "id": "isActive",
+      "key": "isActive",
+      "value": "true",
+      "type": "string"
+    },
+    {
+      "id": "isVerified",
+      "key": "isVerified",
+      "value": "true",
       "type": "string"
     }
   ]

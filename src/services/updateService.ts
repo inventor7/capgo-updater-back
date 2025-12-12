@@ -15,6 +15,9 @@ class UpdateService implements IUpdateService {
       const channelToUse =
         request.channel || request.defaultChannel || "stable";
 
+      // First ensure the app exists in the apps table if it doesn't already
+      await this.ensureAppExists(request.appId);
+
       const updates = await supabaseService.query("updates", {
         select: "version, download_url, checksum, session_key",
         eq: { platform: request.platform },
@@ -23,6 +26,7 @@ class UpdateService implements IUpdateService {
           environment: process.env.ENVIRONMENT || "prod",
           channel: channelToUse,
           active: true,
+          app_id: request.appId, // Add app_id filter for multi-tenancy
         },
         order: { column: "version", ascending: false },
         limit: 1,
@@ -86,6 +90,29 @@ class UpdateService implements IUpdateService {
     }
   }
 
+  private async ensureAppExists(appId: string): Promise<void> {
+    try {
+      // Check if app already exists
+      const existingApps = await supabaseService.query("apps", {
+        match: { app_identifier: appId },
+        select: "id"
+      });
+
+      if (!existingApps.data || existingApps.data.length === 0) {
+        // Create app if it doesn't exist (could be done automatically)
+        await supabaseService.insert("apps", [{
+          name: appId, // Use app identifier as name initially
+          app_identifier: appId,
+          description: `App ${appId}`,
+          created_by: null // No creator since it's automatic
+        }]);
+      }
+    } catch (error) {
+      logger.warn("Could not ensure app exists", { appId, error });
+      // Don't throw error, as this is just for ensuring the app exists
+    }
+  }
+
   async getAllUpdates(query: {
     platform: string;
     appId: string;
@@ -100,6 +127,7 @@ class UpdateService implements IUpdateService {
           "version, download_url, checksum, session_key, channel, environment, required, active, created_at",
         match: {
           platform: query.platform,
+          app_id: query.appId, // Add app_id filter for multi-tenancy
           environment: query.environment || process.env.ENVIRONMENT || "prod",
           channel: query.channel || "stable",
           active: true,
@@ -123,6 +151,9 @@ class UpdateService implements IUpdateService {
     platform: string;
   }): Promise<void> {
     try {
+      // Ensure app exists first
+      await this.ensureAppExists(stats.appId);
+
       await supabaseService.insert("update_stats", [
         {
           bundle_id: stats.bundleId,
@@ -169,6 +200,9 @@ class UpdateService implements IUpdateService {
     platform: string;
   }): Promise<void> {
     try {
+      // Ensure app exists first
+      await this.ensureAppExists(assignment.appId);
+
       const existing = await supabaseService.query("device_channels", {
         match: {
           app_id: assignment.appId,

@@ -5,10 +5,15 @@ import channelRoutes from "./channelRoutes";
 import adminRoutes from "./adminRoutes";
 import healthRoutes from "./healthRoutes";
 import nativeUpdateRoutes from "./nativeUpdateRoutes";
+import authRoutes from "./authRoutes";
+import adminManagementRoutes from "./adminManagementRoutes";
 import { healthController } from "@/controllers";
 
 const router: Router = Router();
 
+// Public routes (including auth)
+router.use("/auth", authRoutes);
+router.use("/admin", adminManagementRoutes); // Admin management routes under /admin
 router.use("/", updateRoutes);
 router.use("/", statsRoutes);
 router.use("/", channelRoutes);

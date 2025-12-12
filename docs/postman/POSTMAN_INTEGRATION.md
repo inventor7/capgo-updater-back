@@ -7,10 +7,12 @@ This document provides instructions on how to use the Postman collection for tes
 The Postman collection includes all API endpoints for the Capgo updater with their required parameters and expected request/response formats. The collection is organized into logical groups:
 
 - Health Check
+- Authentication
 - Update Endpoints
 - Statistics Endpoints
 - Channel Management
 - Native Update Endpoints
+- Admin Management
 - Admin Operations
 
 ## Prerequisites
@@ -40,6 +42,9 @@ The Postman collection includes all API endpoints for the Capgo updater with the
 - `appId`: Your app identifier (e.g., `com.example.app`)
 - `deviceId`: Unique device identifier
 - `channel`: Channel name (e.g., `stable`, `beta`)
+- `email`: User email for authentication (e.g., `user@example.com`)
+- `password`: User password for authentication (e.g., `password123`)
+- `token`: Authentication token (obtained after login)
 
 ### Optional Variables:
 - `bundleId`: Bundle identifier for stats endpoints
@@ -48,10 +53,52 @@ The Postman collection includes all API endpoints for the Capgo updater with the
 - `required`: Boolean for required updates (`true`/`false`)
 - `downloadUrl`: URL for bundle downloads
 - `checksum`: SHA-256 checksum of the bundle
+- `firstName`: User's first name for registration
+- `lastName`: User's last name for registration
+- `userId`: User ID for admin operations
+- `teamId`: Team ID for team management
+- `roleId`: Role ID for role management
+- `appName`: App name for app management
+- `appIdentifier`: App identifier (e.g., `com.example.app`)
+- `appDescription`: Description for app management
+- `teamName`: Team name for team creation
+- `teamDescription`: Description for team creation
+- `roleName`: Role name for role management
+- `roleDescription`: Description for role management
+- `permission`: Permission string for role management
 
 ## Testing the API Endpoints
 
-### 1. Health Check Endpoints
+### 1. Authentication Endpoints
+
+First, register and authenticate to access protected endpoints:
+
+#### Register User
+- **Method**: `POST`
+- **Endpoint**: `/auth/register`
+- **Body**: Contains email, password, firstName, and lastName
+- **Purpose**: Create a new user account
+
+#### Login User
+- **Method**: `POST`
+- **Endpoint**: `/auth/login`
+- **Body**: Contains email and password
+- **Purpose**: Authenticate user and get JWT token
+- **Response**: Contains user information and authentication token which should be stored in the `token` environment variable
+
+#### Logout User
+- **Method**: `POST`
+- **Endpoint**: `/auth/logout`
+- **Headers**: Authorization: Bearer {{token}}
+- **Purpose**: Terminate current user session
+
+#### Get Current Session
+- **Method**: `GET`
+- **Endpoint**: `/auth/session`
+- **Headers**: Authorization: Bearer {{token}}
+- **Purpose**: Get current authenticated user information
+
+### 2. Health Check Endpoints
 
 Start by testing the health check endpoints to ensure your server is running:
 
@@ -137,23 +184,71 @@ Native updates allow for distributing native application updates (APK files for 
 - **Delete Native Update**: `DELETE /api/dashboard/native-updates/{id}`
 - **Purpose**: Manage native updates through the admin dashboard
 
-### 6. Admin Operations
+### 7. Admin Management
+
+Admin management endpoints require authentication and appropriate permissions. These endpoints allow managing applications, teams, roles, and users.
+
+#### App Management
+- **Create App**: `POST /admin/apps` - Create a new application
+- **Get User Apps**: `GET /admin/apps` - Get all applications for the authenticated user
+
+#### Team Management
+- **Create Team**: `POST /admin/teams` - Create a new team for an app
+- **Add User to Team**: `POST /admin/teams/members` - Add a user to a team with a specific role
+
+#### Role Management
+- **Create Role**: `POST /admin/roles` - Create a new role for an app or system-wide
+- **Get App Roles**: `GET /admin/roles` - Get all roles for the authenticated user's apps
+
+#### User Management (Admin only)
+- **Get All Users**: `GET /admin/users` - Get all users
+- **Update User**: `PUT /admin/users/{id}` - Update user status (active/verified)
+- **Get User Permissions**: `GET /admin/users/{id}/permissions` - Get permissions for a specific user
+
+### 8. Admin Operations
 
 #### Upload New Update Bundle
 - **Method**: `POST`
 - **Endpoint**: `/api/admin/upload`
+- **Headers**: Authorization: Bearer {{token}}
 - **Body**: Multipart form data with bundle file and metadata
 - **Purpose**: Upload a new web app update bundle
 
 #### Dashboard Endpoints
-- **Get Dashboard Stats**: `GET /api/dashboard/stats`
-- **Get All Bundles**: `GET /api/dashboard/bundles`
-- **Create Bundle**: `POST /api/dashboard/bundles`
-- **Update Bundle**: `PUT /api/dashboard/bundles/{id}`
-- **Delete Bundle**: `DELETE /api/dashboard/bundles/{id}`
-- **Get All Channels**: `GET /api/dashboard/channels`
-- **Get All Devices**: `GET /api/dashboard/devices`
-- **Get Statistics Data**: `GET /api/dashboard/stats-data`
+- **Get Dashboard Stats**: `GET /api/dashboard/stats` - Requires authentication
+- **Get All Bundles**: `GET /api/dashboard/bundles` - Requires authentication
+- **Create Bundle**: `POST /api/dashboard/bundles` - Requires authentication
+- **Update Bundle**: `PUT /api/dashboard/bundles/{id}` - Requires authentication
+- **Delete Bundle**: `DELETE /api/dashboard/bundles/{id}` - Requires authentication
+- **Get All Channels**: `GET /api/dashboard/channels` - Requires authentication
+- **Get All Devices**: `GET /api/dashboard/devices` - Requires authentication
+- **Get Statistics Data**: `GET /api/dashboard/stats-data` - Requires authentication
+
+## Environment Configuration Examples
+
+### Development Environment
+```
+baseUrl: http://localhost:3000
+platform: android
+version: 1.0.0
+appId: com.example.dev
+channel: beta
+email: user@example.com
+password: password123
+token: # Obtain after login
+```
+
+### Production Environment
+```
+baseUrl: https://your-server.com
+platform: ios
+version: 2.1.0
+appId: com.example.app
+channel: stable
+email: user@example.com
+password: securePassword123
+token: # Obtain after login
+```
 
 ## Environment Configuration Examples
 

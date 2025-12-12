@@ -302,3 +302,5 @@ export class DatabaseError extends AppError {
     super(`Database error: ${message}`, 500);
   }
 }
+
+export * from "./auth";
