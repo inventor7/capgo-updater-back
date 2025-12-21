@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+export * from "./models";
 
 export type Platform = "android" | "ios" | "web";
 

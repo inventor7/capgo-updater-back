@@ -47,7 +47,7 @@ class HealthController {
 
   private async testDatabaseConnection(): Promise<boolean> {
     try {
-      await this.supabaseService.query("updates", {
+      await this.supabaseService.query("apps", {
         select: "id",
         limit: 1,
       });

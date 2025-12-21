@@ -248,7 +248,10 @@ class SupabaseService implements ISupabaseService {
     }
   }
 
-  async createSignedUrl(filePath: string, expiresIn: number = 3600): Promise<string> {
+  async createSignedUrl(
+    filePath: string,
+    expiresIn: number = 3600
+  ): Promise<string> {
     try {
       const { data, error } = await this.storageClient.storage
         .from(config.supabase.bucketName)
@@ -265,14 +268,17 @@ class SupabaseService implements ISupabaseService {
       });
       return data.signedUrl;
     } catch (error) {
-      logger.error("Supabase service create signed URL error", { filePath, error });
+      logger.error("Supabase service create signed URL error", {
+        filePath,
+        error,
+      });
       throw error;
     }
   }
 
   async healthCheck(): Promise<boolean> {
     try {
-      const { error } = await this.client.from("updates").select("id").limit(1);
+      const { error } = await this.client.from("apps").select("id").limit(1);
 
       return !error;
     } catch (error) {

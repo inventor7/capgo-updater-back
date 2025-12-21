@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { adminController } from "@/controllers";
+import { adminController, appController } from "@/controllers";
 import { rateLimiter } from "@/middleware/security";
+import { authenticate } from "@/middleware";
 
 const router: Router = Router();
 
 router.use(rateLimiter);
+router.use(authenticate);
 
 // ============================================================
 // Bundle Management
@@ -40,19 +42,13 @@ router.delete(
 // Apps Management (NEW - for multi-app support)
 // ============================================================
 
-router.get("/dashboard/apps", adminController.getApps.bind(adminController));
+router.get("/dashboard/apps", appController.list.bind(appController));
 
-router.post("/dashboard/apps", adminController.createApp.bind(adminController));
+router.post("/dashboard/apps", appController.create.bind(appController));
 
-router.put(
-  "/dashboard/apps/:id",
-  adminController.updateApp.bind(adminController)
-);
+router.put("/dashboard/apps/:id", appController.update.bind(appController));
 
-router.delete(
-  "/dashboard/apps/:id",
-  adminController.deleteApp.bind(adminController)
-);
+router.delete("/dashboard/apps/:id", appController.delete.bind(appController));
 
 // ============================================================
 // Channel Management

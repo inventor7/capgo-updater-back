@@ -6,6 +6,10 @@ import healthController from "./healthController";
 import nativeUpdateController from "./nativeUpdateController";
 import authController from "./authController";
 import projectController from "./projectController";
+import organizationController from "./organizationController";
+import userController from "./userController";
+import appController from "./appController";
+import onboardingController from "./onboardingController";
 
 export {
   updateController,
@@ -16,4 +20,8 @@ export {
   nativeUpdateController,
   authController,
   projectController,
+  organizationController,
+  userController,
+  appController,
+  onboardingController,
 };

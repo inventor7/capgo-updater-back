@@ -8,10 +8,10 @@ const router: Router = Router();
 router.use(rateLimiter);
 router.use(normalizeRequestFields);
 
-// POST /api/auth/login
+// POST /auth/login
 router.post("/login", authController.login.bind(authController));
 
-// POST /api/auth/register
+// POST /auth/register
 router.post("/register", authController.register.bind(authController));
 
 export default router;

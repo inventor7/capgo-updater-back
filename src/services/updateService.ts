@@ -8,9 +8,34 @@ import supabaseService from "./supabaseService";
 import logger from "@/utils/logger";
 
 class UpdateService implements IUpdateService {
+  /**
+   * Resolve string App ID (e.g. "com.example.app") to UUID
+   */
+  private async resolveAppUuid(appIdString: string): Promise<string | null> {
+    try {
+      const result = await supabaseService.query("apps", {
+        select: "id",
+        eq: { app_id: appIdString },
+      });
+      if (result.data && result.data.length > 0) {
+        return result.data[0].id;
+      }
+      return null;
+    } catch (error) {
+      logger.error("Failed to resolve app UUID", { appIdString, error });
+      return null;
+    }
+  }
+
   async checkForUpdate(request: UpdateRequest): Promise<UpdateResponse> {
     try {
       logger.info("Checking for updates", { request });
+
+      const appUuid = await this.resolveAppUuid(request.appId);
+      if (!appUuid) {
+        logger.warn("App not found for update check", { appId: request.appId });
+        return { message: "App not found" };
+      }
 
       // Get channel - plugin sends defaultChannel (camelCase) or default_channel (snake_case)
       // Priority: explicit channel > defaultChannel > default_channel > fallback to "staging"
@@ -35,103 +60,129 @@ class UpdateService implements IUpdateService {
         channel: channelToUse,
         defaultChannelReceived: request.defaultChannel,
         explicitChannelReceived: request.channel,
+        appUuid,
       });
 
-      // Get latest active update for this platform/channel
-      const updates = await supabaseService.query("updates", {
-        select:
-          "version, download_url, checksum, session_key, min_native_version",
-        eq: { platform: request.platform },
-        match: {
+      // 1. Get the channel to find the current version
+      const { data: channelData, error: channelError } = await supabaseService
+        .getClient()
+        .from("channels")
+        .select(
+          `
+          id,
+          current_version_id,
+          app_versions!current_version_id (
+            version_name,
+            external_url,
+            r2_path,
+            checksum,
+            session_key,
+            min_update_version,
+            platform
+          )
+        `
+        )
+        .eq("app_id", appUuid)
+        .eq("name", channelToUse)
+        .single();
+
+      if (channelError || !channelData || !channelData.app_versions) {
+        logger.info("No active version for channel", { channel: channelToUse });
+        return {};
+      }
+
+      const latestUpdate = channelData.app_versions as any;
+
+      // Ensure platform matches if specified
+      if (request.platform && latestUpdate.platform !== request.platform) {
+        logger.info("Platform mismatch for latest version", {
+          expected: request.platform,
+          actual: latestUpdate.platform,
+        });
+        return {};
+      }
+
+      // Compare versions - check if latest is actually newer than current
+      const isNewer =
+        this.compareVersions(latestUpdate.version_name, currentVersion) > 0;
+
+      if (!isNewer) {
+        logger.info("No update needed - already on latest version", {
+          currentVersion,
+          latestAvailable: latestUpdate.version_name,
           channel: channelToUse,
-          active: true,
-        },
-        order: { column: "version", ascending: false },
-        limit: 1,
-      });
+        });
+        return { message: "No update available" };
+      }
 
-      if (updates && updates.data && updates.data.length > 0) {
-        const latestUpdate = updates.data[0];
+      // Check if user's native version meets the minimum requirement
+      // Note: mapping min_update_version (string) to minNativeRequired
+      const minNativeRequired =
+        parseInt(latestUpdate.min_update_version || "0") || 0;
 
-        // Compare versions - check if latest is actually newer than current
-        const isNewer =
-          this.compareVersions(latestUpdate.version, currentVersion) > 0;
-
-        if (!isNewer) {
-          logger.info("No update needed - already on latest version", {
-            currentVersion,
-            latestAvailable: latestUpdate.version,
-            channel: channelToUse,
-          });
-          return { message: "No update available" };
-        }
-
-        // Check if user's native version meets the minimum requirement
-        const minNativeRequired = latestUpdate.min_native_version || 0;
-
-        if (minNativeRequired > 0 && userNativeVersion < minNativeRequired) {
-          logger.info("OTA update requires newer native version", {
-            userNativeVersion,
-            requiredNativeVersion: minNativeRequired,
-            otaVersion: latestUpdate.version,
-            channel: channelToUse,
-          });
-
-          // Return message indicating native update needed first
-          return {
-            message: "native_update_required",
-            error: `Native version ${minNativeRequired} required. You have ${userNativeVersion}.`,
-          };
-        }
-
-        logger.info("Update found", {
-          version: latestUpdate.version,
-          deviceId: request.deviceId,
+      if (minNativeRequired > 0 && userNativeVersion < minNativeRequired) {
+        logger.info("OTA update requires newer native version", {
+          userNativeVersion,
+          requiredNativeVersion: minNativeRequired,
+          otaVersion: latestUpdate.version_name,
           channel: channelToUse,
         });
 
-        if (request.deviceId) {
-          // Log the update event
-          await supabaseService.insert("update_logs", [
-            {
-              device_id: request.deviceId,
-              app_id: request.appId,
-              current_version: request.version,
-              new_version: latestUpdate.version,
-              platform: request.platform,
-              action: "get",
-              timestamp: new Date().toISOString(),
-            },
-          ]);
-
-          // Also register the device in device_channels if it doesn't exist
-          const existing = await supabaseService.query("device_channels", {
-            match: {
-              app_id: request.appId,
-              device_id: request.deviceId,
-            },
-          });
-
-          if (!existing.data || existing.data.length === 0) {
-            await supabaseService.insert("device_channels", [
-              {
-                app_id: request.appId,
-                device_id: request.deviceId,
-                channel: channelToUse, // Use the resolved channel instead of hardcoded "staging"
-                platform: request.platform,
-                updated_at: new Date().toISOString(),
-              },
-            ]);
-          }
-        }
-
         return {
-          version: latestUpdate.version,
-          url: await this.generateDownloadUrl(latestUpdate.download_url),
-          checksum: latestUpdate.checksum,
-          sessionKey: latestUpdate.session_key || undefined,
+          message: "native_update_required",
+          error: `Native version ${minNativeRequired} required. You have ${userNativeVersion}.`,
         };
       }
+
+      logger.info("Update found", {
+        version: latestUpdate.version_name,
+        deviceId: request.deviceId,
+        channel: channelToUse,
+      });
+
+      if (request.deviceId) {
+        // Log the update event
+        await supabaseService.insert("update_logs", [
+          {
+            device_id: request.deviceId,
+            app_id: appUuid,
+            current_version: request.version,
+            new_version: latestUpdate.version_name,
+            platform: request.platform,
+            action: "get",
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+        // Also register the device in device_channels if it doesn't exist
+        const { data: existing } = await supabaseService
+          .getClient()
+          .from("device_channels")
+          .select("id")
+          .eq("device_id", request.deviceId)
+          .eq("channel_id", channelData.id)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabaseService.insert("device_channels", [
+            {
+              device_id: request.deviceId,
+              channel_id: channelData.id,
+              platform: request.platform,
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+        }
+      }
+
+      return {
+        version: latestUpdate.version_name,
+        url: await this.generateDownloadUrl(
+          latestUpdate.external_url || latestUpdate.r2_path
+        ),
+        checksum: latestUpdate.checksum,
+        sessionKey: latestUpdate.session_key || undefined,
+      };
 
       logger.info("No updates available", {
         request,
@@ -154,20 +205,49 @@ class UpdateService implements IUpdateService {
     try {
       logger.info("Getting all updates", { query });
 
-      const updates = await supabaseService.query("updates", {
-        select:
-          "version, download_url, checksum, session_key, channel, environment, required, active, created_at",
-        match: {
-          platform: query.platform,
-          environment: query.environment || process.env.ENVIRONMENT || "prod",
-          channel: query.channel || "stable",
-          active: true,
-        },
-        gt: { version: "0.0.0" },
-        order: { column: "version", ascending: false },
-      });
+      const appUuid = await this.resolveAppUuid(query.appId);
+      if (!appUuid) {
+        return { updates: [] };
+      }
 
-      return { updates: updates.data || [] };
+      // Query app_versions directly for this app/platform
+      // Since app_versions doesn't link to channels directly in new schema,
+      // we return all versions for the app if channel is 'stable' or not provided
+      const { data, error } = await supabaseService
+        .getClient()
+        .from("app_versions")
+        .select(
+          `
+          version_name,
+          external_url,
+          r2_path,
+          checksum,
+          session_key,
+          created_at,
+          active,
+          required
+        `
+        )
+        .eq("app_id", appUuid)
+        .eq("platform", query.platform)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const formattedUpdates: UpdateRecord[] = (data || []).map((v: any) => ({
+        version: v.version_name,
+        download_url: v.external_url || v.r2_path,
+        checksum: v.checksum,
+        session_key: v.session_key,
+        channel: query.channel || "stable",
+        environment: (query.environment as any) || "prod",
+        required: v.required,
+        active: v.active,
+        created_at: v.created_at,
+        platform: query.platform as any,
+      }));
+
+      return { updates: formattedUpdates };
     } catch (error) {
       logger.error("Get all updates failed", { query, error });
       throw error;
@@ -184,40 +264,57 @@ class UpdateService implements IUpdateService {
     version?: string;
   }): Promise<void> {
     try {
+      const appUuid = await this.resolveAppUuid(stats.appId);
+      if (!appUuid) {
+        logger.warn("Skipping stats log - App not found", {
+          appId: stats.appId,
+        });
+        return;
+      }
+
       // Accept both 'action' (official) and 'status' (legacy)
       const actionOrStatus = stats.action || stats.status || "unknown";
 
-      await supabaseService.insert("update_stats", [
+      await supabaseService.insert("update_logs", [
         {
-          bundle_id: stats.bundleId || stats.version || "unknown",
-          status: actionOrStatus,
-          action: actionOrStatus,
           device_id: stats.deviceId,
-          app_id: stats.appId,
+          app_id: appUuid,
+          new_version: stats.bundleId || stats.version || "unknown",
+          action: actionOrStatus,
           platform: stats.platform,
-          timestamp: new Date().toISOString(),
+          created_at: new Date().toISOString(),
         },
       ]);
 
       // Also register the device in device_channels if it doesn't exist
-      // This ensures the device appears in the dashboard
-      const existing = await supabaseService.query("device_channels", {
-        match: {
-          app_id: stats.appId,
-          device_id: stats.deviceId,
-        },
-      });
+      // We need to find a channel to link it to
+      const { data: channelData } = await supabaseService
+        .getClient()
+        .from("channels")
+        .select("id")
+        .eq("app_id", appUuid)
+        .eq("name", "stable")
+        .maybeSingle();
 
-      if (!existing.data || existing.data.length === 0) {
-        await supabaseService.insert("device_channels", [
-          {
-            app_id: stats.appId,
-            device_id: stats.deviceId,
-            channel: "stable", // Default to stable channel if no specific channel
-            platform: stats.platform,
-            updated_at: new Date().toISOString(),
-          },
-        ]);
+      if (channelData) {
+        const { data: existing } = await supabaseService
+          .getClient()
+          .from("device_channels")
+          .select("id")
+          .eq("device_id", stats.deviceId)
+          .eq("channel_id", channelData.id)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabaseService.insert("device_channels", [
+            {
+              device_id: stats.deviceId,
+              channel_id: channelData.id,
+              platform: stats.platform,
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+        }
       }
 
       logger.info("Stats logged", { stats });
@@ -234,29 +331,47 @@ class UpdateService implements IUpdateService {
     platform: string;
   }): Promise<void> {
     try {
-      const existing = await supabaseService.query("device_channels", {
-        match: {
-          app_id: assignment.appId,
-          device_id: assignment.deviceId,
-        },
-      });
+      const appUuid = await this.resolveAppUuid(assignment.appId);
+      if (!appUuid) {
+        throw new Error("App not found");
+      }
 
-      if (existing.data && existing.data.length > 0) {
+      // 1. Find the channel UUID by name
+      const { data: channelData, error: channelError } = await supabaseService
+        .getClient()
+        .from("channels")
+        .select("id")
+        .eq("app_id", appUuid)
+        .eq("name", assignment.channel)
+        .maybeSingle();
+
+      if (channelError || !channelData) {
+        throw new Error(`Channel '${assignment.channel}' not found for app`);
+      }
+
+      // 2. Update or insert into device_channels
+      const { data: existing } = await supabaseService
+        .getClient()
+        .from("device_channels")
+        .select("id")
+        .eq("device_id", assignment.deviceId)
+        .eq("channel_id", channelData.id)
+        .maybeSingle();
+
+      if (existing) {
         await supabaseService.update(
           "device_channels",
           {
-            channel: assignment.channel,
             platform: assignment.platform,
             updated_at: new Date().toISOString(),
           },
-          { id: existing.data[0].id }
+          { id: existing.id }
         );
       } else {
         await supabaseService.insert("device_channels", [
           {
-            app_id: assignment.appId,
             device_id: assignment.deviceId,
-            channel: assignment.channel,
+            channel_id: channelData.id,
             platform: assignment.platform,
             updated_at: new Date().toISOString(),
           },
@@ -276,20 +391,26 @@ class UpdateService implements IUpdateService {
     platform: string;
   }): Promise<{ channel: string }> {
     try {
-      const result = await supabaseService.query("device_channels", {
-        select: "channel",
-        match: {
-          app_id: query.appId,
-          device_id: query.deviceId,
-          platform: query.platform,
-        },
-      });
+      const appUuid = await this.resolveAppUuid(query.appId);
+      if (!appUuid) return { channel: "stable" };
 
-      const channel =
-        result && result.data && result.data.length > 0
-          ? result.data[0].channel
-          : "stable";
-      return { channel };
+      const { data, error } = await supabaseService
+        .getClient()
+        .from("device_channels")
+        .select(
+          `
+          channels!inner (
+            name
+          )
+        `
+        )
+        .eq("device_id", query.deviceId)
+        .eq("channels.app_id", appUuid)
+        .maybeSingle();
+
+      if (error || !data) return { channel: "stable" };
+
+      return { channel: (data.channels as any).name };
     } catch (error) {
       logger.error("Get device channel failed", { query, error });
       throw error;
@@ -308,25 +429,22 @@ class UpdateService implements IUpdateService {
     }[];
   }> {
     try {
-      const result = await supabaseService.query("updates", {
-        select: "channel",
-        match: {
-          app_id: query.appId,
-          platform: query.platform,
-          active: true,
-        },
-      });
+      const appUuid = await this.resolveAppUuid(query.appId);
+      if (!appUuid) return { channels: [] };
 
-      // Get unique channels and format as ChannelInfo
-      const uniqueChannels = [
-        ...new Set((result.data || []).map((item: any) => item.channel)),
-      ] as string[];
+      const { data, error } = await supabaseService
+        .getClient()
+        .from("channels")
+        .select("id, name, is_public, allow_device_self_set")
+        .eq("app_id", appUuid);
 
-      const channels = uniqueChannels.map((ch) => ({
-        id: ch,
-        name: ch,
-        public: true,
-        allow_self_set: true,
+      if (error) throw error;
+
+      const channels = (data || []).map((ch: any) => ({
+        id: ch.id,
+        name: ch.name,
+        public: ch.is_public,
+        allow_self_set: ch.allow_device_self_set,
       }));
 
       return { channels };

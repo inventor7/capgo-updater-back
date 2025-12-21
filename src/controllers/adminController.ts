@@ -1,11 +1,5 @@
 import { Request, Response } from "express";
-import {
-  DashboardStatsResponse,
-  UpdateRecord,
-  ValidationError,
-  IFileService,
-  ISupabaseService,
-} from "@/types";
+import { ValidationError, IFileService, ISupabaseService } from "@/types";
 import fileService from "@/services/fileService";
 import supabaseService from "@/services/supabaseService";
 import logger from "@/utils/logger";
@@ -26,6 +20,30 @@ class AdminController {
   ) {}
 
   /**
+   * Resolve string App ID (e.g. "com.example.app") to UUID
+   */
+  private async resolveAppUuid(appIdString: string): Promise<string | null> {
+    try {
+      const { data: appData, error } = await this.supabaseService
+        .getClient()
+        .from("apps")
+        .select("id")
+        .eq("app_id", appIdString)
+        .maybeSingle();
+
+      if (error) {
+        logger.error("Error resolving app UUID", { appIdString, error });
+        return null;
+      }
+
+      return appData ? appData.id : null;
+    } catch (error) {
+      logger.error("Failed to resolve app UUID", { appIdString, error });
+      return null;
+    }
+  }
+
+  /**
    * Upload a new update bundle
    * POST /api/admin/upload
    */
@@ -37,6 +55,7 @@ class AdminController {
         channel = "stable",
         environment = "prod",
         required = false,
+        app_id,
       } = req.body;
 
       logger.info("Upload bundle request received", {
@@ -70,8 +89,16 @@ class AdminController {
         );
       }
 
-      const buffer =
-        req.file!.buffer || require("fs").readFileSync(req.file!.path);
+      // Resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
+      if (!appUuid) {
+        throw new ValidationError("Valid App ID is required");
+      }
+
+      const buffer = req.file!.buffer;
       const checksum = this.fileService.calculateChecksum(buffer);
 
       const fileName = `bundle-${platform}-${version}-${Date.now()}${require("path").extname(
@@ -79,27 +106,23 @@ class AdminController {
       )}`;
       const downloadUrl = await this.fileService.uploadFile(fileName, buffer);
 
-      const updateRecord: Omit<UpdateRecord, "id"> = {
+      const updateRecord: any = {
+        app_id: appUuid,
         platform: platform as any,
-        version,
-        download_url: downloadUrl,
+        version_name: version,
+        external_url: downloadUrl,
         checksum,
-        channel,
-        environment: environment as any,
         required: required === "true" || required === true,
         active: true,
-        created_by: "admin",
       };
 
-      const insertedRecord = await this.supabaseService.insert("updates", [
+      const insertedRecord = await this.supabaseService.insert("app_versions", [
         updateRecord,
       ]);
 
       logger.info("Bundle uploaded successfully", {
         version,
         platform,
-        fileName,
-        downloadUrl,
         recordId: insertedRecord[0]?.id,
       });
 
@@ -133,71 +156,83 @@ class AdminController {
 
   /**
    * Get dashboard statistics
-   * GET /api/dashboard/stats
+   * GET /api/dashboard/stats?app_id=...
    */
   async getDashboardStats(req: Request, res: Response): Promise<void> {
     try {
+      const { app_id } = req.query;
+
       logger.info("Fetching dashboard statistics", {
+        app_id,
         ip: req.ip,
-        userAgent: req.get("User-Agent"),
       });
 
-      const bundlesResult = await this.supabaseService.query("updates", {
-        select: "*",
-        count: "exact",
-      });
+      // Resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
 
-      const totalBundles = bundlesResult.count || 0;
+      // If app_id was provided but not found, return zeroes
+      if (app_id && !appUuid) {
+        res.json({
+          bundles_count: 0,
+          devices_count: 0,
+          channels_count: 0,
+          downloads_count: 0,
+        });
+        return;
+      }
 
-      const devicesResult = await this.supabaseService.query(
-        "device_channels",
-        {
-          select: "device_id",
-          order: { column: "updated_at" },
-        }
-      );
+      // 1. Total Bundles (from app_versions)
+      let bundlesQuery = this.supabaseService
+        .getClient()
+        .from("app_versions")
+        .select("id", { count: "exact" });
+      if (appUuid) bundlesQuery = bundlesQuery.eq("app_id", appUuid);
+      const { count: bundlesCount } = await bundlesQuery;
 
-      const activeDevices = devicesResult.data
-        ? new Set(devicesResult.data.map((d: any) => d.device_id)).size
+      // 2. Active Devices
+      let devicesQuery = this.supabaseService
+        .getClient()
+        .from("device_channels")
+        .select("device_id");
+      if (appUuid) devicesQuery = devicesQuery.eq("app_id", appUuid);
+      const { data: devicesData } = await devicesQuery;
+      const devicesCount = devicesData
+        ? new Set(devicesData.map((d: any) => d.device_id)).size
         : 0;
 
-      const channelsResult = await this.supabaseService.query("updates", {
-        select: "channel",
-        order: { column: "created_at" },
-      });
+      // 3. Total Downloads
+      let downloadsQuery = this.supabaseService
+        .getClient()
+        .from("update_logs")
+        .select("id", { count: "exact" })
+        .in("action", ["downloaded", "install"]);
+      if (appUuid) downloadsQuery = downloadsQuery.eq("app_id", appUuid);
+      const { count: downloadsCount } = await downloadsQuery;
 
-      const activeChannels = channelsResult.data
-        ? new Set(channelsResult.data.map((c: any) => c.channel)).size
-        : 0;
+      // 4. Active Channels
+      let channelsQuery = this.supabaseService
+        .getClient()
+        .from("channels")
+        .select("id", { count: "exact" });
+      if (appUuid) channelsQuery = channelsQuery.eq("app_id", appUuid);
+      const { count: channelsCount } = await channelsQuery;
 
-      const downloadsResult = await this.supabaseService.query("update_stats", {
-        select: "*",
-        count: "exact",
-        eq: { status: "downloaded" },
-      });
-
-      const totalDownloads = downloadsResult.count || 0;
-
-      const stats: DashboardStatsResponse = {
-        totalBundles,
-        activeDevices,
-        activeChannels,
-        totalDownloads,
+      const stats = {
+        bundles_count: bundlesCount || 0,
+        devices_count: devicesCount || 0,
+        channels_count: channelsCount || 0,
+        downloads_count: downloadsCount || 0,
       };
 
-      logger.info("Dashboard stats fetched successfully", stats);
       res.json(stats);
     } catch (error) {
       logger.error("Dashboard stats fetch failed", {
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
         ip: req.ip,
-        userAgent: req.get("User-Agent"),
       });
-      res.status(500).json({
-        error: "Failed to fetch dashboard statistics",
-        details: error instanceof Error ? error.message : String(error),
-      });
+      res.status(500).json({ error: "Failed to fetch dashboard statistics" });
     }
   }
 
@@ -207,12 +242,43 @@ class AdminController {
    */
   async getBundles(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.supabaseService.query("updates", {
-        select: "*",
-        order: { column: "created_at", ascending: false },
-      });
+      const { app_id } = req.query;
 
-      res.json(result.data || []);
+      // First resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
+      let query = this.supabaseService
+        .getClient()
+        .from("app_versions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (appUuid) {
+        query = query.eq("app_id", appUuid);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const bundles =
+        (data || []).map((bundle: any) => ({
+          id: bundle.id,
+          version: bundle.version_name,
+          download_url: bundle.external_url || bundle.r2_path,
+          checksum: bundle.checksum,
+          session_key: bundle.session_key,
+          channel: "stable", // Default for dashboard view, actual channel assignment is complex
+          environment: "prod", // Default for dashboard view
+          required: bundle.required,
+          active: bundle.active,
+          created_at: bundle.created_at,
+          platform: bundle.platform,
+          created_by: bundle.uploaded_by,
+        })) || [];
+
+      res.json(bundles);
     } catch (error) {
       logger.error("Bundles fetch failed", { error });
       res.status(500).json({ error: "Failed to fetch bundles" });
@@ -226,7 +292,9 @@ class AdminController {
   async createBundle(req: Request, res: Response): Promise<void> {
     try {
       const bundleData = req.body;
-      const result = await this.supabaseService.insert("updates", [bundleData]);
+      const result = await this.supabaseService.insert("app_versions", [
+        bundleData,
+      ]);
       res.status(201).json(result[0]);
     } catch (error) {
       logger.error("Bundle creation failed", { error });
@@ -243,9 +311,13 @@ class AdminController {
       const { id } = req.params;
       const updateData = req.body;
 
-      const result = await this.supabaseService.update("updates", updateData, {
-        id: parseInt(id!),
-      });
+      const result = await this.supabaseService.update(
+        "app_versions",
+        updateData,
+        {
+          id: id,
+        }
+      );
 
       if (result.length === 0) {
         throw new ValidationError("Bundle not found");
@@ -269,7 +341,7 @@ class AdminController {
   async deleteBundle(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      await this.supabaseService.delete("updates", { id: parseInt(id!) });
+      await this.supabaseService.delete("app_versions", { id: id });
       res.status(204).send();
     } catch (error) {
       logger.error("Bundle deletion failed", { error });
@@ -283,55 +355,74 @@ class AdminController {
    */
   async getChannels(req: Request, res: Response): Promise<void> {
     try {
-      const updatesResult = await this.supabaseService.query("updates", {
-        select: "channel, platform, environment, created_at",
+      const { app_id } = req.query;
+
+      // Resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
+      if (app_id && !appUuid) {
+        res.json([]);
+        return;
+      }
+
+      // 1. Get channels from channels table
+      let query = this.supabaseService.getClient().from("channels").select(`
+          id,
+          name,
+          ios_enabled,
+          android_enabled,
+          created_at,
+          current_version_id,
+          app_versions:current_version_id (
+            version_name
+          )
+        `);
+
+      if (appUuid) {
+        query = query.eq("app_id", appUuid);
+      }
+
+      const { data: channelsData, error: channelsError } = await query;
+      if (channelsError) throw channelsError;
+
+      // 2. Get device counts per channel_id
+      const channelIds = (channelsData || []).map((c: any) => c.id);
+      const deviceCountsMap: Record<string, number> = {};
+
+      if (channelIds.length > 0) {
+        const { data: devices } = await this.supabaseService
+          .getClient()
+          .from("device_channels")
+          .select("channel_id")
+          .in("channel_id", channelIds);
+
+        (devices || []).forEach((d: any) => {
+          deviceCountsMap[d.channel_id] =
+            (deviceCountsMap[d.channel_id] || 0) + 1;
+        });
+      }
+
+      // 3. Format response for frontend
+      const result = (channelsData || []).map((c: any) => {
+        const platforms = [];
+        if (c.ios_enabled) platforms.push("ios");
+        if (c.android_enabled) platforms.push("android");
+
+        return {
+          id: c.id,
+          name: c.name,
+          platform: platforms[0] || "android",
+          app_id: app_id as string,
+          bundle_count: 0,
+          device_count: deviceCountsMap[c.id] || 0,
+          created_at: c.created_at,
+          current_version: (c.app_versions as any)?.version_name || "None",
+        };
       });
 
-      const allChannelsResult = await this.supabaseService.query(
-        "device_channels",
-        {
-          select: "channel",
-        }
-      );
-
-      const channelCounts: { [key: string]: number } = {};
-      (allChannelsResult.data || []).forEach((item: any) => {
-        channelCounts[item.channel] = (channelCounts[item.channel] || 0) + 1;
-      });
-
-      const channelMap: { [key: string]: any } = {};
-      (updatesResult.data || []).forEach((update: any) => {
-        if (!channelMap[update.channel]) {
-          channelMap[update.channel] = {
-            id: update.channel,
-            name:
-              update.channel.charAt(0).toUpperCase() + update.channel.slice(1),
-            platforms: new Set(),
-            environments: new Set(),
-            created_at: update.created_at,
-            device_count: 0,
-          };
-        }
-        channelMap[update.channel].platforms.add(update.platform);
-        channelMap[update.channel].environments.add(update.environment);
-      });
-
-      Object.entries(channelCounts).forEach(([channel, count]) => {
-        if (channelMap[channel]) {
-          channelMap[channel].device_count = count;
-        }
-      });
-
-      const channels = Object.values(channelMap).map((channel: any) => ({
-        id: channel.id,
-        name: channel.name,
-        platforms: Array.from(channel.platforms),
-        environments: Array.from(channel.environments),
-        created_at: channel.created_at,
-        device_count: channel.device_count,
-      }));
-
-      res.json(channels);
+      res.json(result);
     } catch (error) {
       logger.error("Channels fetch failed", { error });
       res.status(500).json({ error: "Failed to fetch channels" });
@@ -344,20 +435,42 @@ class AdminController {
    */
   async getDevices(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.supabaseService.query("device_channels", {
-        select: "*",
-        order: { column: "updated_at", ascending: false },
-      });
+      const { app_id } = req.query;
+
+      // Resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
+      let query = this.supabaseService
+        .getClient()
+        .from("device_channels")
+        .select(
+          `
+          *,
+          channels:channel_id (
+            app_id
+          )
+        `
+        )
+        .order("updated_at", { ascending: false });
+
+      if (appUuid) {
+        query = query.eq("channels.app_id", appUuid);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
 
       const processedDevices =
-        result.data?.map((device: any) => ({
+        (data || []).map((device: any) => ({
           id: device.id,
           device_id: device.device_id,
-          app_id: device.app_id,
+          app_id: device.channels?.app_id || app_id,
           platform: device.platform,
-          channel: device.channel,
+          channel: device.channel_id,
           updated_at: device.updated_at,
-          last_version: "Unknown", // Would need separate query
+          last_version: "Unknown",
         })) || [];
 
       res.json(processedDevices);
@@ -369,17 +482,70 @@ class AdminController {
 
   /**
    * Get statistics data for dashboard
-   * GET /api/dashboard/stats-data
+   * GET /api/dashboard/stats-data?app_id=...&range=...
    */
   async getStatsData(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.supabaseService.query("update_stats", {
-        select: "*",
-        order: { column: "timestamp", ascending: false },
-        limit: 100,
+      const { app_id, range = "month" } = req.query;
+
+      // Resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
+      // If app_id was provided but not found, return empty
+      if (app_id && !appUuid) {
+        res.json({ downloads: [], active_users: [] });
+        return;
+      }
+
+      // Calculate date range
+      const now = new Date();
+      let startDate = new Date();
+      if (range === "day") startDate.setDate(now.getDate() - 1);
+      else if (range === "week") startDate.setDate(now.getDate() - 7);
+      else if (range === "year") startDate.setFullYear(now.getFullYear() - 1);
+      else startDate.setMonth(now.getMonth() - 1); // Default to month
+
+      // Fetch stats from update_logs as update_stats may be missing
+      let query = this.supabaseService
+        .getClient()
+        .from("update_logs")
+        .select("created_at, action, device_id")
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: true });
+
+      if (appUuid) query = query.eq("app_id", appUuid);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Aggregate data by date
+      const downloadsMap: Record<string, number> = {};
+      const usersMap: Record<string, Set<string>> = {};
+
+      (data || []).forEach((stat: any) => {
+        const date = new Date(stat.created_at).toISOString().split("T")[0]!;
+
+        if (stat.action === "downloaded" || stat.action === "install") {
+          downloadsMap[date] = (downloadsMap[date] || 0) + 1;
+        }
+
+        if (!usersMap[date]) usersMap[date] = new Set();
+        usersMap[date]!.add(stat.device_id);
       });
 
-      res.json(result.data || []);
+      const downloads = Object.entries(downloadsMap).map(([date, count]) => ({
+        date,
+        count,
+      }));
+
+      const active_users = Object.entries(usersMap).map(([date, set]) => ({
+        date,
+        count: set.size,
+      }));
+
+      res.json({ downloads, active_users });
     } catch (error) {
       logger.error("Stats data fetch failed", { error });
       res.status(500).json({ error: "Failed to fetch statistics data" });
@@ -443,8 +609,17 @@ class AdminController {
   async deleteChannel(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const { app_id } = req.query;
 
-      await this.supabaseService.delete("updates", { channel: id });
+      // Resolve the app UUID if app_id provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
+      const filter: any = { id };
+      if (appUuid) filter.app_id = appUuid;
+
+      await this.supabaseService.delete("channels", filter);
       res.status(204).send();
     } catch (error) {
       logger.error("Channel deletion failed", { error });
@@ -633,15 +808,20 @@ class AdminController {
     try {
       const { app_id, device_id, limit = 100 } = req.query;
 
+      // Resolve the app UUID from bundle identifier if provided
+      const appUuid = app_id
+        ? await this.resolveAppUuid(app_id as string)
+        : null;
+
       const queryOptions: any = {
         select: "*",
-        order: { column: "timestamp", ascending: false },
+        order: { column: "created_at", ascending: false },
         limit: parseInt(limit as string) || 100,
       };
 
-      if (app_id || device_id) {
+      if (appUuid || device_id) {
         queryOptions.match = {};
-        if (app_id) queryOptions.match.app_id = app_id;
+        if (appUuid) queryOptions.match.app_id = appUuid;
         if (device_id) queryOptions.match.device_id = device_id;
       }
 

@@ -7,6 +7,10 @@ import healthRoutes from "./healthRoutes";
 import nativeUpdateRoutes from "./nativeUpdateRoutes";
 import authRoutes from "./authRoutes";
 import projectRoutes from "./projectRoutes";
+import organizationRoutes from "./organizationRoutes";
+import userRoutes from "./userRoutes";
+import appRoutes from "./appRoutes";
+import onboardingRoutes from "./onboardingRoutes";
 import { healthController } from "@/controllers";
 
 const router: Router = Router();
@@ -18,8 +22,13 @@ router.use("/", adminRoutes);
 router.use("/", healthRoutes);
 router.use("/", nativeUpdateRoutes);
 
-router.use("/api/auth", authRoutes);
-router.use("/api/project", projectRoutes);
+router.use("/organizations", organizationRoutes);
+router.use("/users", userRoutes);
+router.use("/apps", appRoutes);
+router.use("/onboarding", onboardingRoutes);
+
+router.use("/auth", authRoutes);
+router.use("/project", projectRoutes);
 
 router.get("/health", healthController.basicHealthCheck.bind(healthController));
 
