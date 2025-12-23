@@ -24,6 +24,8 @@ router.post(
   updateController.checkForUpdate.bind(updateController)
 );
 
+router.get("/config", updateController.getAppConfig.bind(updateController));
+
 /**
  * Additional update endpoints for dashboard/debugging
  */

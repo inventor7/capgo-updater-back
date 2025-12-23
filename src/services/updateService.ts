@@ -28,6 +28,79 @@ class UpdateService implements IUpdateService {
     }
   }
 
+  async getAppConfig(appId: string): Promise<Record<string, any>> {
+    const { data: app, error } = await supabaseService
+      .getClient()
+      .from("apps")
+      .select("config")
+      .eq("app_id", appId)
+      .single();
+
+    if (error || !app) {
+      return {};
+    }
+
+    return app.config || {};
+  }
+
+  private castValue(value: string, type: string): any {
+    switch (type) {
+      case "number":
+        return Number(value);
+      case "boolean":
+        return value === "true" || value === "1";
+      case "json":
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      default:
+        return value;
+    }
+  }
+
+  async resolveEnvConfig(
+    appUuid: string,
+    environment: string,
+    channel: string
+  ): Promise<Record<string, any>> {
+    try {
+      const { data, error } = await supabaseService
+        .getClient()
+        .from("app_env_vars")
+        .select("key, value, value_type, environment, channel")
+        .eq("app_id", appUuid)
+        .or(`environment.eq.all,environment.eq.${environment}`)
+        .order("environment", { ascending: true });
+
+      if (error || !data) return {};
+
+      const config: Record<string, any> = {};
+      const envOrder = { all: 0, development: 1, staging: 2, production: 3 };
+
+      const sorted = data.sort((a: any, b: any) => {
+        const envDiff =
+          (envOrder[a.environment as keyof typeof envOrder] || 0) -
+          (envOrder[b.environment as keyof typeof envOrder] || 0);
+        if (envDiff !== 0) return envDiff;
+        if (!a.channel && b.channel) return -1;
+        if (a.channel && !b.channel) return 1;
+        return 0;
+      });
+
+      for (const row of sorted) {
+        if (row.channel && row.channel !== channel) continue;
+        config[row.key] = this.castValue(row.value, row.value_type);
+      }
+
+      return config;
+    } catch (error) {
+      logger.error("Failed to resolve env config", { appUuid, error });
+      return {};
+    }
+  }
+
   async checkForUpdate(request: UpdateRequest): Promise<UpdateResponse> {
     try {
       logger.info("Checking for updates", { request });
@@ -66,7 +139,53 @@ class UpdateService implements IUpdateService {
         appUuid,
       });
 
-      // 1. Get the channel to find the current version
+      // 1. Determine environment from channel (production channels map to production env)
+      const envMapping: Record<string, string> = {
+        production: "production",
+        prod: "production",
+        stable: "production",
+        staging: "staging",
+        beta: "staging",
+        development: "development",
+        dev: "development",
+      };
+      const environment =
+        envMapping[channelToUse.toLowerCase()] || "production";
+
+      // 2. Get resolved config from app_env_vars
+      const appConfig = await this.resolveEnvConfig(
+        appUuid,
+        environment,
+        channelToUse
+      );
+
+      // 3. NATIVE FIRST: Check if there is a newer NATIVE binary available for this channel
+      const { data: newestNative } = await supabaseService
+        .getClient()
+        .from("native_updates")
+        .select("*")
+        .eq("app_id", appUuid)
+        .eq("platform", request.platform)
+        .eq("channel", channelToUse)
+        .eq("active", true)
+        .gt("version_code", userNativeVersion)
+        .order("version_code", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (newestNative) {
+        return {
+          message: "update_available",
+          version_name: newestNative.version_name,
+          url: newestNative.download_url,
+          release_notes: newestNative.release_notes,
+          required: newestNative.required,
+          native_update: { ...newestNative, type: "native" },
+          config: appConfig,
+        };
+      }
+
+      // 3. Get the channel to find the current version
       const { data: channelData, error: channelError } = await supabaseService
         .getClient()
         .from("channels")
@@ -91,7 +210,7 @@ class UpdateService implements IUpdateService {
 
       if (channelError || !channelData || !channelData.app_versions) {
         logger.info("No active version for channel", { channel: channelToUse });
-        return {};
+        return { config: appConfig };
       }
 
       const latestUpdate = channelData.app_versions as any;
@@ -102,7 +221,7 @@ class UpdateService implements IUpdateService {
           expected: request.platform,
           actual: latestUpdate.platform,
         });
-        return {};
+        return { config: appConfig };
       }
 
       // Compare versions - check if latest is actually newer than current
@@ -115,7 +234,7 @@ class UpdateService implements IUpdateService {
           latestAvailable: latestUpdate.version_name,
           channel: channelToUse,
         });
-        return { message: "No update available" };
+        return { message: "No update available", config: appConfig };
       }
 
       // Check if user's native version meets the minimum requirement
@@ -131,9 +250,21 @@ class UpdateService implements IUpdateService {
           channel: channelToUse,
         });
 
+        // Try to find the actual native update record to help the app
+        const { data: nativeUpdate } = await supabaseService
+          .getClient()
+          .from("native_updates")
+          .select("*")
+          .eq("platform", request.platform)
+          .eq("app_id", appUuid)
+          .eq("version_code", minNativeRequired)
+          .maybeSingle();
+
         return {
           message: "native_update_required",
           error: `Native version ${minNativeRequired} required. You have ${userNativeVersion}.`,
+          config: appConfig,
+          native_update: nativeUpdate || null,
         };
       }
 
@@ -185,6 +316,7 @@ class UpdateService implements IUpdateService {
         ),
         checksum: latestUpdate.checksum,
         sessionKey: latestUpdate.session_key || undefined,
+        config: appConfig,
       };
 
       logger.info("No updates available", {

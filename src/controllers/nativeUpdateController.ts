@@ -373,15 +373,44 @@ class NativeUpdateController {
    */
   async getNativeUpdates(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.supabaseService.query<NativeUpdateRecord>(
-        "native_updates",
-        {
-          select: "*",
-          order: { column: "created_at", ascending: false },
-        }
-      );
+      const { app_id } = req.query;
 
-      res.json(result.data || []);
+      // Resolve app UUID if identifier provided
+      let appUuid = app_id ? await this.resolveAppUuid(app_id as string) : null;
+
+      // Security Check: If API key is scoped to a specific app, enforce it
+      const keyAppId = (req as any).appId;
+      if (keyAppId) {
+        if (appUuid && keyAppId !== appUuid) {
+          res
+            .status(403)
+            .json({ error: "Forbidden: API key restricted to another app" });
+          return;
+        }
+        appUuid = keyAppId;
+      }
+
+      let query = this.supabaseService
+        .getClient()
+        .from("native_updates")
+        .select("*, apps(app_id)")
+        .order("created_at", { ascending: false });
+
+      if (appUuid) {
+        query = query.eq("app_id", appUuid);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const results = (data || []).map((update: any) => ({
+        ...update,
+        app_bundle_id: update.apps?.app_id,
+        is_active_for: [],
+      }));
+
+      res.json(results);
     } catch (error) {
       logger.error("Native updates fetch failed", { error });
       res.status(500).json({ error: "Failed to fetch native updates" });
@@ -463,7 +492,7 @@ class NativeUpdateController {
         }
       },
     });
-    return upload.single("file");
+    return upload.single("bundle");
   }
 }
 

@@ -175,6 +175,22 @@ class UpdateController {
       res.status(500).json({ error: "Internal server error" });
     }
   };
+
+  getAppConfig = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { app_id } = req.query;
+      if (!app_id) {
+        res.status(400).json({ error: "app_id is required" });
+        return;
+      }
+
+      const config = await this.updateService.getAppConfig(app_id as string);
+      res.json(config);
+    } catch (error) {
+      logger.error("Error getting app config", { error });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  };
 }
 
 const updateController = new UpdateController(

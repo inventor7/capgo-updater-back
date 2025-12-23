@@ -172,14 +172,20 @@ class AppController {
         return;
       }
 
-      const updateData = req.body;
-      delete updateData.id;
+      const { name, app_id, organization_id, platform, icon_url, config } =
+        req.body;
 
-      // Ensure updated_at is set
-      const dataToUpdate = {
-        ...updateData,
+      const dataToUpdate: any = {
         updated_at: new Date().toISOString(),
       };
+
+      if (name !== undefined) dataToUpdate.name = name;
+      if (app_id !== undefined) dataToUpdate.app_id = app_id;
+      if (organization_id !== undefined)
+        dataToUpdate.organization_id = organization_id;
+      if (platform !== undefined) dataToUpdate.platform = platform;
+      if (icon_url !== undefined) dataToUpdate.icon_url = icon_url;
+      if (config !== undefined) dataToUpdate.config = config;
 
       const result = await supabaseService.update("apps", dataToUpdate, { id });
 

@@ -4,6 +4,7 @@ import fileService from "@/services/fileService";
 import supabaseService from "@/services/supabaseService";
 import logger from "@/utils/logger";
 import semver from "semver";
+import * as fs from "fs";
 
 /**
  * Controller for handling admin operations including file uploads and dashboard APIs
@@ -55,6 +56,8 @@ class AdminController {
         platform,
         channel = "stable",
         required = false,
+        active = true,
+        release_notes = "",
         app_id,
       } = req.body;
 
@@ -114,7 +117,7 @@ class AdminController {
         return;
       }
 
-      const buffer = req.file!.buffer;
+      const buffer = req.file!.buffer || fs.readFileSync(req.file!.path);
       const checksum = this.fileService.calculateChecksum(buffer);
 
       const fileName = `bundle-${platform}-${finalVersion}-${Date.now()}${require("path").extname(
@@ -130,7 +133,8 @@ class AdminController {
         external_url: downloadUrl,
         checksum,
         required: required === "true" || required === true,
-        active: true,
+        active: active === "true" || active === true,
+        release_notes: release_notes || null,
       };
 
       const insertedRecord = await this.supabaseService.insert("app_versions", [
@@ -292,7 +296,7 @@ class AdminController {
       let query = this.supabaseService
         .getClient()
         .from("app_versions")
-        .select("*")
+        .select("*, apps(app_id)")
         .order("created_at", { ascending: false });
 
       if (appUuid) {
@@ -302,9 +306,18 @@ class AdminController {
       const { data, error } = await query;
       if (error) throw error;
 
+      // Fetch channels to identify which bundles are currently "active" (live)
+      const { data: channels } = await this.supabaseService
+        .getClient()
+        .from("channels")
+        .select("name, current_version_id")
+        .eq("app_id", appUuid);
+
       const bundles =
         (data || []).map((bundle: any) => ({
           id: bundle.id,
+          app_id: bundle.app_id,
+          app_bundle_id: bundle.apps?.app_id,
           version_name: bundle.version_name,
           download_url: bundle.external_url || bundle.r2_path,
           checksum: bundle.checksum,
@@ -315,6 +328,11 @@ class AdminController {
           created_at: bundle.created_at,
           platform: bundle.platform,
           created_by: bundle.uploaded_by,
+          release_notes: bundle.release_notes,
+          min_native_version: bundle.min_update_version,
+          is_active_for: (channels || [])
+            .filter((ch: any) => ch.current_version_id === bundle.id)
+            .map((ch: any) => ch.name),
         })) || [];
 
       res.json(bundles);
@@ -783,10 +801,134 @@ class AdminController {
     }
   }
 
-  /**
-   * Delete an app
-   * DELETE /api/dashboard/apps/:id
-   */
+  async promoteBundle(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { target_app_id, target_channel, password } = req.body;
+
+      if (!target_app_id || !target_channel) {
+        throw new ValidationError(
+          "target_app_id and target_channel are required"
+        );
+      }
+
+      // 1. Password Verification for Security
+      const user = (req as any).user;
+      if (!password) {
+        throw new ValidationError("Password is required for promotion");
+      }
+
+      const { error: authError } = await this.supabaseService
+        .getClient()
+        .auth.signInWithPassword({
+          email: user.email,
+          password,
+        });
+
+      if (authError) {
+        logger.warn("Promotion denied: Invalid password", {
+          user: user.email,
+          itemId: id,
+        });
+        throw new ValidationError("Invalid password. Promotion denied.");
+      }
+
+      const sourceBundle = await this.supabaseService
+        .getClient()
+        .from("app_versions")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      let promoteType: "bundle" | "native" = "bundle";
+      let sourceData = sourceBundle.data;
+
+      if (sourceBundle.error || !sourceBundle.data) {
+        const sourceNative = await this.supabaseService
+          .getClient()
+          .from("native_updates")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (sourceNative.error || !sourceNative.data) {
+          throw new ValidationError("Source bundle or native update not found");
+        }
+        promoteType = "native";
+        sourceData = sourceNative.data;
+      }
+
+      const targetApp = await this.supabaseService
+        .getClient()
+        .from("apps")
+        .select("id")
+        .eq("app_id", target_app_id)
+        .single();
+
+      if (targetApp.error || !targetApp.data) {
+        throw new ValidationError("Target app not found");
+      }
+
+      const {
+        id: _,
+        created_at: __,
+        updated_at: ___,
+        ...itemData
+      } = sourceData;
+
+      const targetTable =
+        promoteType === "bundle" ? "app_versions" : "native_updates";
+
+      const insertData = {
+        ...itemData,
+        app_id: targetApp.data.id,
+        channel: target_channel,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const upsertOptions: any = {};
+      if (promoteType === "native") {
+        upsertOptions.onConflict = "app_id, platform, version_code";
+      }
+
+      const { data: newItem, error: insertError } = await this.supabaseService
+        .getClient()
+        .from(targetTable)
+        .upsert([insertData], upsertOptions)
+        .select();
+
+      if (insertError || !newItem || newItem.length === 0) {
+        logger.error(`Failed to promote ${promoteType}`, {
+          insertError,
+          targetTable,
+        });
+        throw new Error(`Failed to create promoted ${promoteType}`);
+      }
+
+      if (promoteType === "bundle") {
+        await this.supabaseService
+          .getClient()
+          .from("channels")
+          .update({
+            current_version_id: newItem[0].id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("app_id", targetApp.data.id)
+          .eq("name", target_channel);
+      }
+
+      res.json(newItem[0]);
+    } catch (error) {
+      logger.error("Promotion failed", { error });
+      if (error instanceof ValidationError) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to promote item" });
+      }
+    }
+  }
+
   async deleteApp(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;

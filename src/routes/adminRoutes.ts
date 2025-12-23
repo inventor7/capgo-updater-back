@@ -48,6 +48,11 @@ router.delete(
   adminController.deleteBundle.bind(adminController)
 );
 
+router.post(
+  "/dashboard/bundles/:id/promote",
+  adminController.promoteBundle.bind(adminController)
+);
+
 // ============================================================
 // Apps Management (NEW - for multi-app support)
 // ============================================================

@@ -34,6 +34,14 @@ export interface UpdateResponse {
   error?: string;
   /** Message for client */
   message?: string;
+  /** Dynamic configuration for the app */
+  config?: Record<string, any>;
+  /** info about native update if required */
+  native_update?: any;
+  /** Release notes for the update */
+  release_notes?: string;
+  /** Whether the update is mandatory */
+  required?: boolean;
 }
 
 /**
@@ -148,6 +156,7 @@ export interface BundleData {
   active: boolean;
   created_at: string;
   created_by?: string;
+  is_latest_for?: string[];
 }
 
 export interface ChannelData {
@@ -220,6 +229,7 @@ export interface NativeUpdateRecord {
   file_size_bytes?: number;
   release_notes?: string;
   created_at?: string;
+  is_latest_for?: string[];
 }
 
 export interface NativeUpdateCheckRequest {
@@ -301,7 +311,7 @@ export interface IFileService {
   createMulterUpload(): any; // Multer upload middleware
 }
 
-export interface AppConfig {
+export interface ServerConfig {
   port: number;
   supabase: {
     url: string;

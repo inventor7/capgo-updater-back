@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import Joi from "joi";
-import { AppConfig } from "@/types";
+import { ServerConfig } from "@/types";
 
 dotenv.config();
 
@@ -32,7 +32,7 @@ if (error) {
   );
 }
 
-const config: AppConfig = {
+const config: ServerConfig = {
   port: envVars.PORT,
   supabase: {
     url: envVars.SUPABASE_URL,
