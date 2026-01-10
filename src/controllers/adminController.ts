@@ -54,7 +54,7 @@ class AdminController {
         version,
         version_name,
         platform,
-        channel = "stable",
+        channel = "prod",
         required = false,
         active = true,
         release_notes = "",
@@ -129,7 +129,7 @@ class AdminController {
         app_id: appUuid,
         platform: platform as any,
         version_name: finalVersion,
-        channel: channel || "stable",
+        channel: channel || "prod",
         external_url: downloadUrl,
         checksum,
         required: required === "true" || required === true,
@@ -322,7 +322,7 @@ class AdminController {
           download_url: bundle.external_url || bundle.r2_path,
           checksum: bundle.checksum,
           session_key: bundle.session_key,
-          channel: bundle.channel || "stable",
+          channel: bundle.channel || "prod",
           required: bundle.required,
           active: bundle.active,
           created_at: bundle.created_at,
@@ -479,7 +479,7 @@ class AdminController {
           .in("channel", channelNames);
 
         (bundles || []).forEach((b: any) => {
-          const channelName = b.channel || "stable";
+          const channelName = b.channel || "prod";
           bundleCountsMap[channelName] =
             (bundleCountsMap[channelName] || 0) + 1;
         });
@@ -552,7 +552,7 @@ class AdminController {
           device_id: device.device_id,
           app_id: device.channels?.app_id || app_id,
           platform: device.platform,
-          channel: device.channels?.name || "stable",
+          channel: device.channels?.name || "prod",
           updated_at: device.updated_at,
           last_version: "Unknown",
         })) || [];
@@ -883,7 +883,8 @@ class AdminController {
         ...itemData,
         app_id: targetApp.data.id,
         channel: target_channel,
-        created_at: new Date().toISOString(),
+        // Preserve original created_at to maintain sort order in dashboard (so old pushed versions stay "old")
+        created_at: sourceData.created_at,
         updated_at: new Date().toISOString(),
       };
 

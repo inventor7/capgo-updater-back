@@ -82,7 +82,7 @@ CREATE TABLE app_permissions (
 -- CHANNELS & VERSIONS
 -- ============================================================================
 
--- Channels (production, staging, beta, etc.)
+-- Channels (production, staging, etc.)
 CREATE TABLE channels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     app_id UUID NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
@@ -123,6 +123,7 @@ CREATE TABLE app_versions (
     
     -- Version control
     min_update_version VARCHAR(50),
+    channel VARCHAR(100) NOT NULL DEFAULT 'prod',
     required BOOLEAN NOT NULL DEFAULT false,
     active BOOLEAN NOT NULL DEFAULT true,
     
@@ -157,7 +158,7 @@ CREATE TABLE native_updates (
     active BOOLEAN NOT NULL DEFAULT true,
     
     -- Distribution
-    channel VARCHAR(100) NOT NULL DEFAULT 'production',
+    channel VARCHAR(100) NOT NULL DEFAULT 'prod',
     release_notes TEXT,
     
     uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -364,7 +365,7 @@ COMMENT ON TABLE organizations IS 'Each organization represents a brand, client,
 COMMENT ON TABLE organization_members IS 'Organization-level roles: owner, admin, member';
 COMMENT ON TABLE apps IS 'Apps belong directly to organizations (no teams)';
 COMMENT ON TABLE app_permissions IS 'Per-app roles: admin, developer, tester, viewer - controls what users can see and do per app';
-COMMENT ON TABLE channels IS 'Distribution channels (production, staging, beta) for OTA updates';
+COMMENT ON TABLE channels IS 'Distribution channels (production, staging) for OTA updates';
 COMMENT ON TABLE app_versions IS 'OTA updates (JavaScript bundles) for Capacitor/Cordova apps';
 COMMENT ON TABLE native_updates IS 'Native binary updates (APK/IPA) for major releases';
 

@@ -24,7 +24,7 @@ class UpdateService implements IUpdateService {
       }
 
       // 2. Try stripping suffixes (e.g. io.aybinv.vuena.staging -> io.aybinv.vuena)
-      const suffixes = [".staging", ".dev", ".debug", ".beta"];
+      const suffixes = [".staging", ".dev"];
       for (const suffix of suffixes) {
         if (appIdString.endsWith(suffix)) {
           const baseAppId = appIdString.slice(0, -suffix.length);
@@ -97,7 +97,7 @@ class UpdateService implements IUpdateService {
       if (error || !data) return {};
 
       const config: Record<string, any> = {};
-      const envOrder = { all: 0, development: 1, staging: 2, production: 3 };
+      const envOrder = { all: 0, dev: 1, staging: 2, prod: 3 };
 
       const sorted = data.sort((a: any, b: any) => {
         const envDiff =
@@ -420,7 +420,7 @@ class UpdateService implements IUpdateService {
         download_url: v.external_url || v.r2_path,
         checksum: v.checksum,
         session_key: v.session_key,
-        channel: query.channel || "stable",
+        channel: query.channel || "prod",
         required: v.required,
         active: v.active,
         created_at: v.created_at,
@@ -465,7 +465,7 @@ class UpdateService implements IUpdateService {
         .from("channels")
         .select("id")
         .eq("app_id", appUuid)
-        .eq("name", "stable")
+        .eq("name", "prod")
         .maybeSingle();
 
       if (channelData) {
@@ -564,7 +564,7 @@ class UpdateService implements IUpdateService {
   }): Promise<{ channel: string }> {
     try {
       const appUuid = await this.resolveAppUuid(query.appId);
-      if (!appUuid) return { channel: "stable" };
+      if (!appUuid) return { channel: "prod" };
 
       const { data, error } = await supabaseService
         .getClient()
@@ -580,7 +580,7 @@ class UpdateService implements IUpdateService {
         .eq("channels.app_id", appUuid)
         .maybeSingle();
 
-      if (error || !data) return { channel: "stable" };
+      if (error || !data) return { channel: "prod" };
 
       return { channel: (data.channels as any).name };
     } catch (error) {

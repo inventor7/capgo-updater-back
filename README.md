@@ -7,7 +7,7 @@ This is a self-hosted alternative to Capgo's update service using the same Capac
 - ✅ Capgo-compatible API endpoints (can use existing `@capgo/capacitor-updater` plugin)
 - ✅ Automatic updates for Capacitor apps
 - ✅ Version management with semantic versioning
-- ✅ Channel management (stable, beta, dev)
+- ✅ Channel management (staging, prod, dev)
 - ✅ Update statistics and logging
 - ✅ Admin interface for uploading updates
 - ✅ No subscription fees - full control over your data
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS updates (
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   created_by VARCHAR(100),
-  
+
   INDEX idx_platform_version (platform, version),
   INDEX idx_active (active),
   INDEX idx_channel_env (channel, environment)
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS device_channels (
   channel VARCHAR(20) NOT NULL,
   platform VARCHAR(20),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
+
   UNIQUE(app_id, device_id),
   INDEX idx_app_id (app_id),
   INDEX idx_channel (channel)
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS update_stats (
   app_id VARCHAR(100),
   platform VARCHAR(20),
   timestamp TIMESTAMPTZ DEFAULT NOW(),
-  
+
   INDEX idx_device (device_id),
   INDEX idx_app (app_id),
   INDEX idx_status (status)
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS update_logs (
   new_version VARCHAR(20),
   platform VARCHAR(20),
   timestamp TIMESTAMPTZ DEFAULT NOW(),
-  
+
   INDEX idx_device (device_id),
   INDEX idx_app (app_id),
   INDEX idx_timestamp (timestamp)
@@ -146,20 +146,20 @@ Your server will be available at `http://your-server-ip:3000`
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/update` | Check for web updates |
-| POST | `/api/stats` | Update statistics |
-| POST | `/api/channel_self` | Channel management |
-| POST | `/api/admin/upload` | Upload new web update |
-| **Native Updates** | | |
-| GET | `/api/native-updates/check` | Check for native updates (APK/IPA) |
-| POST | `/api/native-updates/log` | Log native update events |
-| POST | `/api/admin/native-upload` | Upload new native update (APK/IPA) |
-| GET | `/api/dashboard/native-updates` | Get all native updates (dashboard) |
-| PUT | `/api/dashboard/native-updates/:id` | Update native update record |
-| DELETE | `/api/dashboard/native-updates/:id` | Delete native update |
-| GET | `/` | Admin interface |
+| Method             | Endpoint                            | Description                        |
+| ------------------ | ----------------------------------- | ---------------------------------- |
+| GET                | `/api/update`                       | Check for web updates              |
+| POST               | `/api/stats`                        | Update statistics                  |
+| POST               | `/api/channel_self`                 | Channel management                 |
+| POST               | `/api/admin/upload`                 | Upload new web update              |
+| **Native Updates** |                                     |                                    |
+| GET                | `/api/native-updates/check`         | Check for native updates (APK/IPA) |
+| POST               | `/api/native-updates/log`           | Log native update events           |
+| POST               | `/api/admin/native-upload`          | Upload new native update (APK/IPA) |
+| GET                | `/api/dashboard/native-updates`     | Get all native updates (dashboard) |
+| PUT                | `/api/dashboard/native-updates/:id` | Update native update record        |
+| DELETE             | `/api/dashboard/native-updates/:id` | Delete native update               |
+| GET                | `/`                                 | Admin interface                    |
 
 ## Native Updates (APK/IPA)
 
@@ -173,6 +173,7 @@ The server supports native app updates (APK for Android, IPA for iOS) in additio
 4. **Log Events**: Log update events using `/api/native-updates/log`
 
 ### API Endpoints for Native Updates
+
 - `GET /api/native-updates/check` - Check for available native update based on platform and current version code
 - `POST /api/native-updates/log` - Log update events (downloaded, applied, failed)
 - `POST /api/admin/native-upload` - Upload new APK/IPA files for distribution
@@ -182,6 +183,7 @@ The server supports native app updates (APK for Android, IPA for iOS) in additio
   - `DELETE /api/dashboard/native-updates/:id` - Delete native update
 
 ### Parameters for Native Updates
+
 - `platform`: "android" or "ios"
 - `current_version_code`: Integer version code of the current app
 - `channel`: Update channel (default: "stable")
@@ -195,7 +197,7 @@ Update your app to use your self-hosted server:
 
 ```javascript
 await AutoUpdaterService.init({
-  updateServerUrl: 'http://your-server-ip:3000/api/update',
+  updateServerUrl: "http://your-server-ip:3000/api/update",
   // ... other config options
 });
 
@@ -260,26 +262,28 @@ Access the admin interface at `http://your-server:3000/` to upload new updates.
 
 ### API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/update` | Check for web updates |
-| POST | `/api/stats` | Update statistics |
-| POST | `/api/channel_self` | Channel management |
-| POST | `/api/admin/upload` | Upload new web update |
-| GET | `/api/builtin` | Get builtin version info |
-| POST | `/api/downloaded` | Download completion notification |
-| POST | `/api/applied` | Update application notification |
-| POST | `/api/failed` | Update failure notification |
-| **Native Updates** | | |
-| GET | `/api/native-updates/check` | Check for native updates (APK/IPA) |
-| POST | `/api/native-updates/log` | Log native update events |
-| POST | `/api/admin/native-upload` | Upload new native update (APK/IPA) |
-| GET | `/api/dashboard/native-updates` | Get all native updates (dashboard) |
-| PUT | `/api/dashboard/native-updates/:id` | Update native update record |
-| DELETE | `/api/dashboard/native-updates/:id` | Delete native update |
-| GET | `/` | Admin interface |
-| GET | `/health` | Health check |
+| Method             | Endpoint                            | Description                        |
+| ------------------ | ----------------------------------- | ---------------------------------- |
+| GET                | `/api/update`                       | Check for web updates              |
+| POST               | `/api/stats`                        | Update statistics                  |
+| POST               | `/api/channel_self`                 | Channel management                 |
+| POST               | `/api/admin/upload`                 | Upload new web update              |
+| GET                | `/api/builtin`                      | Get builtin version info           |
+| POST               | `/api/downloaded`                   | Download completion notification   |
+| POST               | `/api/applied`                      | Update application notification    |
+| POST               | `/api/failed`                       | Update failure notification        |
+| **Native Updates** |                                     |                                    |
+| GET                | `/api/native-updates/check`         | Check for native updates (APK/IPA) |
+| POST               | `/api/native-updates/log`           | Log native update events           |
+| POST               | `/api/admin/native-upload`          | Upload new native update (APK/IPA) |
+| GET                | `/api/dashboard/native-updates`     | Get all native updates (dashboard) |
+| PUT                | `/api/dashboard/native-updates/:id` | Update native update record        |
+| DELETE             | `/api/dashboard/native-updates/:id` | Delete native update               |
+| GET                | `/`                                 | Admin interface                    |
+| GET                | `/health`                           | Health check                       |
+
 });
+
 ```
 
 ### Uploading Updates
@@ -312,11 +316,13 @@ Features:
 ## Architecture
 
 ```
-Your App (Capacitor) 
-    ↓ (calls update API)
+
+Your App (Capacitor)
+↓ (calls update API)
 Self-Hosted Server (Node.js + Supabase)
-    ↓ (stores bundles)
+↓ (stores bundles)
 Supabase Storage
+
 ```
 
 The server acts as a middleman between your app and your bundle storage.
@@ -344,3 +350,4 @@ Add `DEBUG=1` to your `.env` file for detailed logging.
 ## License
 
 MIT
+```

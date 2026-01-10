@@ -3,7 +3,7 @@ export * from "./models";
 
 export type Platform = "android" | "ios" | "web";
 
-export type Channel = string; // e.g., 'stable', 'beta', 'alpha'
+export type Channel = string; // e.g., 'stable','prod','dev'
 
 export interface UpdateRequest {
   platform: Platform;
