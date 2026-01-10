@@ -14,13 +14,33 @@ class UpdateService implements IUpdateService {
    */
   private async resolveAppUuid(appIdString: string): Promise<string | null> {
     try {
-      const result = await supabaseService.query("apps", {
+      // 1. Try exact match
+      let result = await supabaseService.query("apps", {
         select: "id",
         eq: { app_id: appIdString },
       });
       if (result.data && result.data.length > 0) {
         return result.data[0].id;
       }
+
+      // 2. Try stripping suffixes (e.g. io.aybinv.vuena.staging -> io.aybinv.vuena)
+      const suffixes = [".staging", ".dev", ".debug", ".beta"];
+      for (const suffix of suffixes) {
+        if (appIdString.endsWith(suffix)) {
+          const baseAppId = appIdString.slice(0, -suffix.length);
+          result = await supabaseService.query("apps", {
+            select: "id",
+            eq: { app_id: baseAppId },
+          });
+          if (result.data && result.data.length > 0) {
+            logger.info(
+              `Resolved App UUID via suffix match: ${appIdString} -> ${baseAppId}`
+            );
+            return result.data[0].id;
+          }
+        }
+      }
+
       return null;
     } catch (error) {
       logger.error("Failed to resolve app UUID", { appIdString, error });
@@ -142,6 +162,35 @@ class UpdateService implements IUpdateService {
         environment,
         channelToUse
       );
+
+      // 1.5. Strict Environment Isolation Check
+      // Ensure that the requesting App ID matches the Channel's environment matches expectations
+      const incomingAppId = request.appId.toLowerCase();
+      let expectedEnv = "prod";
+
+      if (incomingAppId.endsWith(".staging")) {
+        expectedEnv = "staging";
+      } else if (
+        incomingAppId.endsWith(".dev") ||
+        incomingAppId.endsWith(".debug")
+      ) {
+        expectedEnv = "dev";
+      }
+
+      // If the channel's environment doesn't match the App ID's type, block it.
+      // E.g. Staging App (io.x.staging) -> Should only see Channels with Environment=staging
+      if (environment !== expectedEnv) {
+        logger.warn("Environment mismatch blocked", {
+          appId: request.appId,
+          channel: channelToUse,
+          channelEnv: environment,
+          expectedEnv,
+        });
+        return {
+          message: "Environment mismatch",
+          config: appConfig,
+        };
+      }
 
       // 3. NATIVE FIRST: Check if there is a newer NATIVE binary available for this channel
       const userNativeVersion =

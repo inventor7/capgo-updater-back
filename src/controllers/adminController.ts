@@ -916,6 +916,16 @@ class AdminController {
           })
           .eq("app_id", targetApp.data.id)
           .eq("name", target_channel);
+      } else if (promoteType === "native") {
+        await this.supabaseService
+          .getClient()
+          .from("channels")
+          .update({
+            current_native_version_id: newItem[0].id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("app_id", targetApp.data.id)
+          .eq("name", target_channel);
       }
 
       res.json(newItem[0]);
