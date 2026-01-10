@@ -98,6 +98,7 @@ CREATE TABLE channels (
     ),
     disable_auto_update_under_native BOOLEAN NOT NULL DEFAULT false,
     current_version_id UUID, -- FK added later
+    current_native_version_id UUID, -- FK added later
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(app_id, name)

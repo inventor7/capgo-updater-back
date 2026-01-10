@@ -325,7 +325,7 @@ class NativeUpdateController {
         checksum,
         channel,
         required: required === "true" || required === true,
-        active: true,
+        active: false, // Default to inactive logic for manual release
         file_size_bytes: req.file.size,
         release_notes: release_notes || null,
       };
@@ -404,10 +404,19 @@ class NativeUpdateController {
 
       if (error) throw error;
 
+      // Fetch channels to identify which native updates are currently "active" (live)
+      const { data: channels } = await this.supabaseService
+        .getClient()
+        .from("channels")
+        .select("name, current_native_version_id")
+        .eq("app_id", appUuid);
+
       const results = (data || []).map((update: any) => ({
         ...update,
         app_bundle_id: update.apps?.app_id,
-        is_active_for: [],
+        is_active_for: (channels || [])
+          .filter((ch: any) => ch.current_native_version_id === update.id)
+          .map((ch: any) => ch.name),
       }));
 
       res.json(results);

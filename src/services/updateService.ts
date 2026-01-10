@@ -111,7 +111,7 @@ class UpdateService implements IUpdateService {
         return { message: "App not found" };
       }
 
-      // Get channel - plugin sends defaultChannel (camelCase) or default_channel (snake_case)
+      // 1. Get channel metadata - plugin sends defaultChannel (camelCase) or default_channel (snake_case)
       // Priority: explicit channel > defaultChannel > default_channel > fallback to "staging"
       const channelToUse =
         request.channel ||
@@ -119,40 +119,24 @@ class UpdateService implements IUpdateService {
         (request as any).default_channel ||
         "staging";
 
-      // Parse user's native version (version_code from plugin, not version_build)
-      const userNativeVersion =
-        parseInt(request.versionCode || request.versionBuild || "0") || 0;
+      const { data: channelData, error: channelError } = await supabaseService
+        .getClient()
+        .from("channels")
+        .select(
+          "id, environment, current_version_id, current_native_version_id"
+        )
+        .eq("app_id", appUuid)
+        .eq("name", channelToUse)
+        .maybeSingle();
 
-      // Normalize version - "builtin" means user has no OTA bundle, treat as 0.0.0
-      const currentVersion =
-        request.version_name === "builtin"
-          ? "0.0.0"
-          : request.version_name || "0.0.0";
+      if (channelError || !channelData) {
+        logger.warn("Channel not found", { channel: channelToUse, appUuid });
+        return { message: "Channel not found" };
+      }
 
-      logger.info("Normalized request", {
-        originalVersion: request.version_name,
-        normalizedVersion: currentVersion,
-        userNativeVersion,
-        channel: channelToUse,
-        defaultChannelReceived: request.defaultChannel,
-        explicitChannelReceived: request.channel,
-        appUuid,
-      });
+      const environment = channelData.environment || "staging";
 
-      // 1. Determine environment from channel (production channels map to production env)
-      const envMapping: Record<string, string> = {
-        production: "production",
-        prod: "production",
-        stable: "production",
-        staging: "staging",
-        beta: "staging",
-        development: "development",
-        dev: "development",
-      };
-      const environment =
-        envMapping[channelToUse.toLowerCase()] || "production";
-
-      // 2. Get resolved config from app_env_vars
+      // 2. Get resolved config from app_env_vars using the channel's environment
       const appConfig = await this.resolveEnvConfig(
         appUuid,
         environment,
@@ -160,60 +144,74 @@ class UpdateService implements IUpdateService {
       );
 
       // 3. NATIVE FIRST: Check if there is a newer NATIVE binary available for this channel
-      const { data: newestNative } = await supabaseService
-        .getClient()
-        .from("native_updates")
-        .select("*")
-        .eq("app_id", appUuid)
-        .eq("platform", request.platform)
-        .eq("channel", channelToUse)
-        .eq("active", true)
-        .gt("version_code", userNativeVersion)
-        .order("version_code", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const userNativeVersion =
+        parseInt(request.versionCode || request.versionBuild || "0") || 0;
 
-      if (newestNative) {
-        return {
-          message: "update_available",
-          version_name: newestNative.version_name,
-          url: newestNative.download_url,
-          release_notes: newestNative.release_notes,
-          required: newestNative.required,
-          native_update: { ...newestNative, type: "native" },
-          config: appConfig,
-        };
+      const currentVersion =
+        request.version_name === "builtin"
+          ? "0.0.0"
+          : request.version_name || "0.0.0";
+      // 3. NATIVE FIRST: Check if channel has an explicit NATIVE version assigned
+      if (channelData.current_native_version_id) {
+        const { data: assignedNative } = await supabaseService
+          .getClient()
+          .from("native_updates")
+          .select("*")
+          .eq("id", channelData.current_native_version_id)
+          .maybeSingle();
+
+        // If the assigned native version is newer than what user has, force update
+        if (
+          assignedNative &&
+          assignedNative.version_code > userNativeVersion &&
+          assignedNative.platform === request.platform
+        ) {
+          return {
+            message: "update_available",
+            version_name: assignedNative.version_name,
+            url: assignedNative.download_url,
+            release_notes: assignedNative.release_notes,
+            required: assignedNative.required,
+            native_update: { ...assignedNative, type: "native" },
+            config: appConfig,
+          };
+        }
       }
 
-      // 3. Get the channel to find the current version
-      const { data: channelData, error: channelError } = await supabaseService
-        .getClient()
-        .from("channels")
-        .select(
-          `
-          id,
-          current_version_id,
-          app_versions!current_version_id (
-            version_name,
-            external_url,
-            r2_path,
-            checksum,
-            session_key,
-            min_update_version,
-            platform
-          )
-        `
-        )
-        .eq("app_id", appUuid)
-        .eq("name", channelToUse)
-        .single();
-
-      if (channelError || !channelData || !channelData.app_versions) {
-        logger.info("No active version for channel", { channel: channelToUse });
+      if (!channelData.current_version_id) {
+        logger.info("No active version ID set for channel", {
+          channel: channelToUse,
+        });
         return { config: appConfig };
       }
 
-      const latestUpdate = channelData.app_versions as any;
+      // 4. Get the full channel version data for OTA
+      const { data: versionData, error: versionError } = await supabaseService
+        .getClient()
+        .from("app_versions")
+        .select(
+          `
+          version_name,
+          external_url,
+          r2_path,
+          checksum,
+          session_key,
+          min_update_version,
+          platform
+        `
+        )
+        .eq("id", channelData.current_version_id)
+        .maybeSingle();
+
+      if (versionError || !versionData) {
+        logger.info("No active version metadata for channel", {
+          channel: channelToUse,
+          versionId: channelData.current_version_id,
+        });
+        return { config: appConfig };
+      }
+
+      const latestUpdate = versionData as any;
 
       // Ensure platform matches if specified
       if (request.platform && latestUpdate.platform !== request.platform) {
