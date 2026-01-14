@@ -179,17 +179,23 @@ class UpdateService implements IUpdateService {
 
       // If the channel's environment doesn't match the App ID's type, block it.
       // E.g. Staging App (io.x.staging) -> Should only see Channels with Environment=staging
+      // EXCEPTION: Prod apps (io.x) CAN access Staging channels (e.g. for beta testing)
       if (environment !== expectedEnv) {
-        logger.warn("Environment mismatch blocked", {
-          appId: request.appId,
-          channel: channelToUse,
-          channelEnv: environment,
-          expectedEnv,
-        });
-        return {
-          message: "Environment mismatch",
-          config: appConfig,
-        };
+        // Allow Prod App -> Staging Channel
+        if (expectedEnv === "prod" && environment === "staging") {
+          // Allowed
+        } else {
+          logger.warn("Environment mismatch blocked", {
+            appId: request.appId,
+            channel: channelToUse,
+            channelEnv: environment,
+            expectedEnv,
+          });
+          return {
+            message: "Environment mismatch",
+            config: appConfig,
+          };
+        }
       }
 
       // 3. NATIVE FIRST: Check if there is a newer NATIVE binary available for this channel
