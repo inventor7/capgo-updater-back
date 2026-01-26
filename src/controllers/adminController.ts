@@ -17,7 +17,7 @@ class AdminController {
    */
   constructor(
     private readonly fileService: IFileService,
-    private readonly supabaseService: ISupabaseService
+    private readonly supabaseService: ISupabaseService,
   ) {}
 
   /**
@@ -83,13 +83,13 @@ class AdminController {
 
       if (!finalVersion || !platform || !semver.valid(finalVersion)) {
         throw new ValidationError(
-          "Missing or invalid parameters: version, platform (semver required)"
+          "Missing or invalid parameters: version, platform (semver required)",
         );
       }
 
       if (["android", "ios", "web"].indexOf(platform) === -1) {
         throw new ValidationError(
-          "Invalid platform. Must be: android, ios, web"
+          "Invalid platform. Must be: android, ios, web",
         );
       }
 
@@ -120,8 +120,8 @@ class AdminController {
       const buffer = req.file!.buffer || fs.readFileSync(req.file!.path);
       const checksum = this.fileService.calculateChecksum(buffer);
 
-      const fileName = `bundle-${platform}-${finalVersion}-${Date.now()}${require("path").extname(
-        req.file!.originalname
+      const fileName = `bundles/${appUuid}/${platform}/${channel}/bundle-${platform}-${finalVersion}-${Date.now()}${require("path").extname(
+        req.file!.originalname,
       )}`;
       const downloadUrl = await this.fileService.uploadFile(fileName, buffer);
 
@@ -373,7 +373,7 @@ class AdminController {
         updateData,
         {
           id: id,
-        }
+        },
       );
 
       if (result.length === 0) {
@@ -535,7 +535,7 @@ class AdminController {
             app_id,
             name
           )
-        `
+        `,
         )
         .order("updated_at", { ascending: false });
 
@@ -661,7 +661,7 @@ class AdminController {
           channel,
           updated_at: new Date().toISOString(),
         },
-        { id: parseInt(id!) }
+        { id: parseInt(id!) },
       );
 
       if (result.length === 0) {
@@ -783,7 +783,7 @@ class AdminController {
       const result = await this.supabaseService.update(
         "apps",
         { ...updateData, updated_at: new Date().toISOString() },
-        { id }
+        { id },
       );
 
       if (result.length === 0) {
@@ -808,7 +808,7 @@ class AdminController {
 
       if (!target_app_id || !target_channel) {
         throw new ValidationError(
-          "target_app_id and target_channel are required"
+          "target_app_id and target_channel are required",
         );
       }
 
@@ -968,7 +968,7 @@ class AdminController {
           app_versions:current_version_id (
             version_name
           )
-        `
+        `,
         )
         .eq("id", id)
         .single();
@@ -1073,7 +1073,7 @@ class AdminController {
       const result = await this.supabaseService.update(
         "channels",
         { ...sanitizedData, updated_at: new Date().toISOString() },
-        { id }
+        { id },
       );
 
       if (result.length === 0) {
@@ -1123,7 +1123,7 @@ class AdminController {
 
       const result = await this.supabaseService.query(
         "update_logs",
-        queryOptions
+        queryOptions,
       );
       res.json(result.data || []);
     } catch (error) {

@@ -20,7 +20,7 @@ import * as fs from "fs";
 class NativeUpdateController {
   constructor(
     private readonly fileService: IFileService,
-    private readonly supabaseService: ISupabaseService
+    private readonly supabaseService: ISupabaseService,
   ) {}
 
   /**
@@ -57,7 +57,7 @@ class NativeUpdateController {
 
       if (!platform || current_version_code === undefined) {
         throw new ValidationError(
-          "Missing required parameters: platform, current_version_code"
+          "Missing required parameters: platform, current_version_code",
         );
       }
 
@@ -89,7 +89,7 @@ class NativeUpdateController {
           gt: { version_code: versionCode },
           order: { column: "version_code", ascending: false },
           limit: 1,
-        }
+        },
       );
 
       if (result.data && result.data.length > 0) {
@@ -140,7 +140,7 @@ class NativeUpdateController {
 
       if (!event || !platform) {
         throw new ValidationError(
-          "Missing required parameters: event, platform"
+          "Missing required parameters: event, platform",
         );
       }
 
@@ -238,13 +238,13 @@ class NativeUpdateController {
       // Validate required fields
       if (!finalVersion || !version_code || !platform) {
         throw new ValidationError(
-          "Missing required parameters: version, version_code, platform"
+          "Missing required parameters: version, version_code, platform",
         );
       }
 
       if (!semver.valid(finalVersion)) {
         throw new ValidationError(
-          "Version must follow semantic versioning (e.g. 1.2.3)"
+          "Version must follow semantic versioning (e.g. 1.2.3)",
         );
       }
 
@@ -295,7 +295,7 @@ class NativeUpdateController {
       const checksum = this.fileService.calculateChecksum(buffer);
 
       // Upload file with native prefix
-      const fileName = `native/${platform}/${channel}/v${versionCodeNum}-${finalVersion}.${ext}`;
+      const fileName = `native/${appUuid}/${platform}/${channel}/v${versionCodeNum}-${finalVersion}.${ext}`;
       const downloadUrl = await this.supabaseService
         .getClient()
         .storage.from(config.supabase.bucketName)
@@ -332,7 +332,7 @@ class NativeUpdateController {
 
       const insertedRecord = await this.supabaseService.insert(
         "native_updates",
-        [updateRecord]
+        [updateRecord],
       );
 
       logger.info("Native update uploaded successfully", {
@@ -438,7 +438,7 @@ class NativeUpdateController {
       const result = await this.supabaseService.update(
         "native_updates",
         updateData,
-        { id }
+        { id },
       );
 
       if (result.length === 0) {
