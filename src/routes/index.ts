@@ -19,9 +19,9 @@ const router: Router = Router();
 router.use("/", updateRoutes);
 router.use("/", statsRoutes);
 router.use("/", channelRoutes);
-router.use("/", adminRoutes);
 router.use("/", healthRoutes);
 router.use("/", nativeUpdateRoutes);
+router.use("/", adminRoutes);
 
 router.use("/organizations", organizationRoutes);
 router.use("/users", userRoutes);

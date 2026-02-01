@@ -19,38 +19,38 @@ router.use(authenticate);
 router.post(
   "/admin/upload",
   adminController.getUploadMiddleware(),
-  adminController.uploadBundle.bind(adminController)
+  adminController.uploadBundle.bind(adminController),
 );
 
 router.post(
   "/admin/native-upload",
   nativeUpdateController.getUploadMiddleware(),
-  nativeUpdateController.uploadNativeUpdate.bind(nativeUpdateController)
+  nativeUpdateController.uploadNativeUpdate.bind(nativeUpdateController),
 );
 
 router.get(
   "/dashboard/bundles",
-  adminController.getBundles.bind(adminController)
+  adminController.getBundles.bind(adminController),
 );
 
 router.post(
   "/dashboard/bundles",
-  adminController.createBundle.bind(adminController)
+  adminController.createBundle.bind(adminController),
 );
 
 router.put(
   "/dashboard/bundles/:id",
-  adminController.updateBundle.bind(adminController)
+  adminController.updateBundle.bind(adminController),
 );
 
 router.delete(
   "/dashboard/bundles/:id",
-  adminController.deleteBundle.bind(adminController)
+  adminController.deleteBundle.bind(adminController),
 );
 
 router.post(
   "/dashboard/bundles/:id/promote",
-  adminController.promoteBundle.bind(adminController)
+  adminController.promoteBundle.bind(adminController),
 );
 
 // ============================================================
@@ -71,27 +71,27 @@ router.delete("/dashboard/apps/:id", appController.delete.bind(appController));
 
 router.get(
   "/dashboard/channels",
-  adminController.getChannels.bind(adminController)
+  adminController.getChannels.bind(adminController),
 );
 
 router.get(
   "/dashboard/channels/:id",
-  adminController.getChannel.bind(adminController)
+  adminController.getChannel.bind(adminController),
 );
 
 router.post(
   "/dashboard/channels",
-  adminController.createChannel.bind(adminController)
+  adminController.createChannel.bind(adminController),
 );
 
 router.put(
   "/dashboard/channels/:id",
-  adminController.updateChannel.bind(adminController)
+  adminController.updateChannel.bind(adminController),
 );
 
 router.delete(
   "/dashboard/channels/:id",
-  adminController.deleteChannel.bind(adminController)
+  adminController.deleteChannel.bind(adminController),
 );
 
 // ============================================================
@@ -100,17 +100,17 @@ router.delete(
 
 router.get(
   "/dashboard/devices",
-  adminController.getDevices.bind(adminController)
+  adminController.getDevices.bind(adminController),
 );
 
 router.put(
   "/dashboard/devices/:id/channel",
-  adminController.updateDeviceChannel.bind(adminController)
+  adminController.updateDeviceChannel.bind(adminController),
 );
 
 router.delete(
   "/dashboard/devices/:id",
-  adminController.deleteDevice.bind(adminController)
+  adminController.deleteDevice.bind(adminController),
 );
 
 // ============================================================
@@ -119,17 +119,33 @@ router.delete(
 
 router.get(
   "/dashboard/stats",
-  adminController.getDashboardStats.bind(adminController)
+  adminController.getDashboardStats.bind(adminController),
 );
 
 router.get(
   "/dashboard/stats-data",
-  adminController.getStatsData.bind(adminController)
+  adminController.getStatsData.bind(adminController),
 );
 
 router.get(
   "/dashboard/update-logs",
-  adminController.getUpdateLogs.bind(adminController)
+  adminController.getUpdateLogs.bind(adminController),
+);
+
+// Native Update Dashboard
+router.get(
+  "/dashboard/native-updates",
+  nativeUpdateController.getNativeUpdates.bind(nativeUpdateController),
+);
+
+router.put(
+  "/dashboard/native-updates/:id",
+  nativeUpdateController.updateNativeUpdate.bind(nativeUpdateController),
+);
+
+router.delete(
+  "/dashboard/native-updates/:id",
+  nativeUpdateController.deleteNativeUpdate.bind(nativeUpdateController),
 );
 
 export default router;
